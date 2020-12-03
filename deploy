@@ -18,36 +18,36 @@ set_correct_working_dir() {
 update_distro() {
 	message="Modernising distribution.."
 	echo -ne "${message} |····················| [   0% ]\r"
-	sudo apt-get update -y > /dev/null
+	sudo apt-get -qq update -y
 	echo -ne "${message} |>>>>················| [  20% ]\r"
-	sudo apt-get upgrade -y > /dev/null
+	sudo apt-get -qq upgrade -y
 	echo -ne "${message} |>>>>>>>>············| [  40% ]\r"
-	sudo apt-get dist-upgrade -y > /dev/null
+	sudo apt-get -qq dist-upgrade -y
 	echo -ne "${message} |>>>>>>>>>>>>········| [  60% ]\r"
-	sudo apt-get autoremove > /dev/null
+	sudo apt-get -qq autoremove
 	echo -ne "${message} |>>>>>>>>>>>>>>>>····| [  80% ]\r"
-	sudo apt-gt install git-all wget curl -y > /dev/null
+	sudo apt-get -qq install git-all wget curl -y
 	echo -ne "${message} |>>>>>>>>>>>>>>>>>>>>| [ 100% ]\r"
 	echo "${message} Done."
 }
 
 install_zsh() {
 	echo -n "Installing ZSH.."
-	sudo apt-get install zsh -y > /dev/null
+	sudo apt-get -qq install zsh -y
 	echo "Done."
 	echo -n "Installing Oh-My-Zsh.. "
-	sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+	sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended > /dev/null 2>&1
 	echo "Done."
 	echo -n "Changing default shell to ZSH.. "
 	sudo chsh -s $(which zsh)
-	echo "Done."
+	echo "Done: $(which zsh)"
 	echo -n "Installing Powerlevel10k.. "
-	git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k > /dev/null
+	git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k > /dev/null 2>&1
 	echo "Done."
 }
 
 echo -n "Removing need for sudo password.. "
-sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/${USER} > /dev/null
+sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/${USER} > /dev/null 2>&1
 echo "Done."
 
 set_correct_working_dir
