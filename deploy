@@ -4,7 +4,7 @@
 #	- add "startingDirectory": "//wsl$/Ubuntu/home/james/"
 
 set_correct_working_dir() {
-	echo -n "Setting working directory to script location.. "
+	# echo -n "Setting working directory to script location.. "
 	SOURCE="${BASH_SOURCE[0]}"
 	while [[ -h "$SOURCE" ]]; do
 		DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
@@ -12,30 +12,62 @@ set_correct_working_dir() {
 		[[ ${SOURCE} != /* ]] && SOURCE="$DIR/$SOURCE"
 	done
 	DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
-	echo "Done: ${DIR}"
+	# echo "Done: ${DIR}"
 }
 
-set_correct_working_dir
+update_distro() {
+	message="Modernising distribution.."
+	echo -ne "${message} |····················| [   0% ]\r"
+	sudo apt-get update -y > /dev/null
+	echo -ne "${message} |>>>>················| [  20% ]\r"
+	sudo apt-get upgrade -y > /dev/null
+	echo -ne "${message} |>>>>>>>>············| [  40% ]\r"
+	sudo apt-get dist-upgrade -y > /dev/null
+	echo -ne "${message} |>>>>>>>>>>>>········| [  60% ]\r"
+	sudo apt-get autoremove > /dev/null
+	echo -ne "${message} |>>>>>>>>>>>>>>>>····| [  80% ]\r"
+	sudo apt-gt install git-all wget curl -y > /dev/null
+	echo -ne "${message} |>>>>>>>>>>>>>>>>>>>>| [ 100% ]\r"
+	echo "${message} Done."
+}
 
-# # Remove need for sudo password
+install_zsh() {
+	echo -n "Installing ZSH.."
+	sudo apt-get install zsh -y > /dev/null
+	echo "Done."
+	echo -n "Installing Oh-My-Zsh.. "
+	sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+	echo "Done."
+	echo -n "Changing default shell to ZSH.. "
+	sudo chsh -s $(which zsh)
+	echo "Done."
+	echo -n "Installing Powerlevel10k.. "
+	git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k > /dev/null
+	echo "Done."
+}
+
+echo -n "Removing need for sudo password.. "
 sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/${USER} > /dev/null
+echo "Done."
 
-# # Modernise distribution
-sudo apt update -y && sudo apt upgrade -y && sudo apt dist-upgrade -y && sudo apt autoremove && sudo apt install git-all curl wget -y
+set_correct_working_dir
+update_distro
+install_zsh
 
-# # ZSH and Oh-My-Zsh
-sudo apt install zsh -y
-sudo sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 
 # # Config
+echo -n "Copying config files.. "
 cp ${DIR}/.zshrc ${HOME}
 cp ${DIR}/.p10k.zsh ${HOME}
 # # sed -i 's/ZSH_THEME="robbyrussell"/ZSH_THEME="powerlevel10k\/powerlevel10k"/g' ~/.zshrc
+echo "Done."
 
 # # VS Code Server
 code
 
 # # git credentials
+git config --global user.email "40263851+trackness@users.noreply.github.com"
+git config --global user.name "Trackness"
 git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe"
 
 # # dev tools
