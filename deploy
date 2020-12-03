@@ -58,7 +58,6 @@ install_zsh
 echo -n "Copying config files.. "
 cp ${DIR}/.zshrc ${HOME}
 cp ${DIR}/.p10k.zsh ${HOME}
-# # sed -i 's/ZSH_THEME="robbyrussell"/ZSH_THEME="powerlevel10k\/powerlevel10k"/g' ~/.zshrc
 echo "Done."
 
 echo -n "Setting git config.. "
