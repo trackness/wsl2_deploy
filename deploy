@@ -54,7 +54,6 @@ set_correct_working_dir
 update_distro
 install_zsh
 
-
 # # Config
 echo -n "Copying config files.. "
 cp ${DIR}/.zshrc ${HOME}
@@ -62,13 +61,14 @@ cp ${DIR}/.p10k.zsh ${HOME}
 # # sed -i 's/ZSH_THEME="robbyrussell"/ZSH_THEME="powerlevel10k\/powerlevel10k"/g' ~/.zshrc
 echo "Done."
 
-# # VS Code Server
-code
-
-# # git credentials
+echo -n "Setting git config.. "
 git config --global user.email "40263851+trackness@users.noreply.github.com"
 git config --global user.name "Trackness"
 git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe"
+echo "Done."
 
 # # dev tools
 # # pyenv go poetry
+
+# # VS Code Server
+# code
