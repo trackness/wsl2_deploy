@@ -1,29 +1,47 @@
+#! /usr/bin/bash
+
 # Correct starting directory in Windows Terminal settings
 #	- add "startingDirectory": "//wsl$/Ubuntu/home/james/"
 
-# git credentials
-git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe"
+# DIR="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-LOCAL_USER="$ (whoami)"
+set_correct_working_dir() {
+	echo -n "Setting working directory to script location.. "
+	SOURCE="${BASH_SOURCE[0]}"
+	while [[ -h "$SOURCE" ]]; do
+		DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+		SOURCE="$(readlink "$SOURCE")"
+		[[ ${SOURCE} != /* ]] && SOURCE="$DIR/$SOURCE"
+	done
+	DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+	echo "Done: ${DIR}"
+}
 
-# Remove need for sudo password
-sudo echo "${LOCAL_USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/${LOCAL_USER} > /dev/null
+set_correct_working_dir
 
-# Modernise distribution
+# echo $DIR
+# echo $USER
+
+# # Remove need for sudo password
+sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/${USER} > /dev/null
+
+# # Modernise distribution
 sudo apt update -y && sudo apt upgrade -y && sudo apt dist-upgrade -y && sudo apt autoremove && sudo apt install git-all curl wget -y
 
-# ZSH and Oh-My-Zsh
-sudo apt install zsh -y
-sudo sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+# # ZSH and Oh-My-Zsh
+# sudo apt install zsh -y
+# sudo sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 
-# Config
-cp ${DIR}/.zshrc /home/${LOCAL_USER}
-cp ${DIR}/.p10k.zsh /home/${LOCAL_USER}
-# sed -i 's/ZSH_THEME="robbyrussell"/ZSH_THEME="powerlevel10k\/powerlevel10k"/g' ~/.zshrc
+# # Config
+# cp ${DIR}/.zshrc ${HOME}
+# cp ${DIR}/.p10k.zsh ${HOME}
+# # sed -i 's/ZSH_THEME="robbyrussell"/ZSH_THEME="powerlevel10k\/powerlevel10k"/g' ~/.zshrc
 
-# VS Code Server
-code > /dev/null
+# # VS Code Server
+# code > /dev/null
 
-# dev tools
-# pyenv go poetry
+# # git credentials
+# git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe"
+
+# # dev tools
+# # pyenv go poetry
