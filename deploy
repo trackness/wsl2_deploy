@@ -1,5 +1,9 @@
 #! /usr/bin/bash
 
+# -e: exit on error
+# -u: exit on unset variables
+set -eu
+
 # Correct starting directory in Windows Terminal settings
 #	- add "startingDirectory": "//wsl$/Ubuntu/home/james/"
 
@@ -44,20 +48,31 @@ install_zsh() {
 	echo -n "Installing Powerlevel10k.. "
 	git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k > /dev/null 2>&1
 	echo "Done."
+	echo -n "Copying .zshrc config.. "
+	cp ${DIR}/.zshrc ${HOME}
+	echo "Done."
+	echo -n "Copying .p10k.zsh config.. "
+	cp ${DIR}/.p10k.zsh ${HOME}
+	echo "Done."
+}
+
+log_and_exec() {
+	echo -n "${1}.. "
+	"${2[@]}"
+	echo "Done."
 }
 
 echo -n "Removing need for sudo password.. "
 sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/${USER} > /dev/null 2>&1
 echo "Done."
 
+log_and_exec "Removing need for sudo password" cmd=( sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/${USER} )
+
 set_correct_working_dir
 update_distro
 install_zsh
 
-echo -n "Copying config files.. "
-cp ${DIR}/.zshrc ${HOME}
-cp ${DIR}/.p10k.zsh ${HOME}
-echo "Done."
+
 
 echo -n "Setting git config.. "
 git config --global user.email "40263851+trackness@users.noreply.github.com"
