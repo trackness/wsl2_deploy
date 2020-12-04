@@ -1,9 +1,5 @@
 #! /usr/bin/bash
 
-# -e: exit on error
-# -u: exit on unset variables
-set -eu
-
 function set_correct_working_dir() {
 	SOURCE="${BASH_SOURCE[0]}"
 	while [[ -h "$SOURCE" ]]; do
@@ -14,40 +10,23 @@ function set_correct_working_dir() {
 	DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
 }
 
-function get_property {
-	PROP_FILE=${1}
-	PROP_KEY=${2}
-	PROP_VALUE=$(cat $PROP_FILE | grep $PROP_KEY | cut -d'=' -f2)
-	echo $PROP_VALUE
-}
-
-function git_config() {
-	_git_name=(git config --global user.name "$(get_property "/mnt/c/Users/James/.gitconfig" "name")")
-	_git_email=(git config --global user.email "$(get_property "/mnt/c/Users/James/.gitconfig" "email")")
-	_git_credential_manager=(git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe")
-
-	log_and_exec -su "Setting Github name" "${_git_name[@]}"
-	log_and_exec -su "Setting Github email" "${_git_email[@]}"
-	log_and_exec -su "Setting Github credential manager" "${_git_credential_manager[@]}"
-}
-
 function log_and_exec() {
 	local super=""
-	local volume=2
+	local volume=1
 
 	for arg in "$@"
 	do
 		case $arg in
 			-su|--super)
-				super="sudo"
+				super="sudo "
 				shift
 				;;
 			-q|--quiet)
-				volume=1
+				volume=-0
 				shift
 				;;
-			-qq|--silent)
-				volume=0
+			-l|--loud)
+				volume=2
 				shift
 				;;
 		esac
@@ -59,97 +38,128 @@ function log_and_exec() {
 
 	case $volume in
 		0)
-			${super} "${arr[@]}" > /dev/null 2>&1
+			if [[ $super ]]; then
+				sudo "${arr[@]}" > /dev/null 2>&1
+			else
+				"${arr[@]}" > /dev/null 2>&1
+			fi
 			;;
 		1)
 			echo -n "${message}.. "
-			${super} "${arr[@]}" > /dev/null 2>&1
+			if [[ $super ]]; then
+				sudo "${arr[@]}" > /dev/null 2>&1
+			else
+				"${arr[@]}" > /dev/null 2>&1
+			fi
 			echo "Done."
 			;;
 		2)
 			echo "### ${message} ###"
-			${super} "${arr[@]}"
+			if [[ $super ]]; then
+				sudo "${arr[@]}"
+			else
+				"${arr[@]}"
+			fi
 			;;
 	esac
 }
 
+function get_property {
+	PROP_FILE=${1}
+	PROP_KEY=${2}
+	PROP_VALUE=$(cat "$PROP_FILE" | grep "$PROP_KEY" | cut -d '=' -f2)
+	shopt -s extglob
+	output="${PROP_VALUE##*( )}"
+	shopt -u extglob
+	echo "$output"
+}
+
+function git_config() {
+	_git_name=(git config --global user.name "$(get_property "/mnt/c/Users/James/.gitconfig" "name")")
+	log_and_exec "Setting Github name" "${_git_name[@]}"
+	_git_email=(git config --global user.email "$(get_property "/mnt/c/Users/James/.gitconfig" "email")")
+	log_and_exec "Setting Github email" "${_git_email[@]}"
+	_git_credential_manager=(git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe")
+	log_and_exec "Setting Github credential manager" "${_git_credential_manager[@]}"
+}
+
 function update_distro() {
 	_apt_get_update=(apt-get update -y)
-	log_and_exec -su -q "Updating package index" "${_apt_get_update[@]}"
+	log_and_exec -su "Updating package index" "${_apt_get_update[@]}"
 
 	_apt_get_dist_upgrade=(apt-get dist-upgrade -y)
-	log_and_exec -su -q "Upgrading packages" "${_apt_get_dist_upgrade[@]}"
+	log_and_exec -su "Upgrading packages" "${_apt_get_dist_upgrade[@]}"
 
 	_apt_get_install_basics=(apt-get install git-all wget curl -y)
-	log_and_exec -su -q "Installing basic packages" "${_apt_get_install_basics[@]}"
+	log_and_exec -su "Installing basic packages" "${_apt_get_install_basics[@]}"
 
 	_apt_get_autoremove=(apt-get autoremove)
-	log_and_exec -su -q "Removing unneccessary dependencies" "${_apt_get_autoremove[@]}"
+	log_and_exec -su "Removing unneccessary dependencies" "${_apt_get_autoremove[@]}"
 }
 
 function update_shell() {
 	_zsh_install=(apt-get install zsh -y)
-	log_and_exec -su -q "Installing ZSH" "${_zsh_install[@]}"
+	log_and_exec -su "Installing ZSH" "${_zsh_install[@]}"
 
 	_oh_my_zsh=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended)
-	log_and_exec -q "Installing Oh-My-Zsh" "${_oh_my_zsh[@]}"
+	log_and_exec "Installing Oh-My-Zsh" "${_oh_my_zsh[@]}"
 
 	_powerlevel10k=(git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"/themes/powerlevel10k)
-	log_and_exec -q "Installing Powerlevel10k" "${_powerlevel10k[@]}"
+	log_and_exec "Installing Powerlevel10k" "${_powerlevel10k[@]}"
 
 	_copy_zshrc=(cp "$DIR"/.zshrc "$HOME")
-	log_and_exec -q "Copying .zshrc config" "${_copy_zshrc[@]}"
+	log_and_exec "Copying .zshrc config" "${_copy_zshrc[@]}"
 
 	_copy_p10k=(cp "$DIR"/.p10k.zsh "$HOME")
-	log_and_exec -q "Copying .p10k.zsh config" "${_copy_p10k[@]}"
+	log_and_exec "Copying .p10k.zsh config" "${_copy_p10k[@]}"
 
 	_change_default_shell=(chsh -s /usr/bin/zsh "$USER")
-	log_and_exec -su -q "Changing default shell to ZSH" "${_change_default_shell[@]}"
+	log_and_exec -su "Changing default shell to ZSH" "${_change_default_shell[@]}"
 }
 
 function install_dev_tools() {
-	# echo -n "Installing Poetry.. "
-	# curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python - > /dev/null 2>&1
-	# echo "Done."
-
-	# VS Code Server
-	# code
-
 	_go_add=(add-apt-repository -y ppa:longsleep/golang-backports)
-	log_and_exec -su -q "Adding custom Go package source" "${_go_add[@]}"
+	log_and_exec -su "Adding custom Go package source" "${_go_add[@]}"
 	_go_update=(apt -y update)
-	log_and_exec -su -q "Updating Go package index" "${_go_update[@]}"
+	log_and_exec -su "Updating Go package index" "${_go_update[@]}"
 	_go_install=(apt -y install golang-go)
-	log_and_exec -su -q "Installing Go" "${_go_install[@]}"
+	log_and_exec -su "Installing Go" "${_go_install[@]}"
 
 	_tfswitch_install=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)")
-	log_and_exec -su -q "Installing tfswitch" "${_tfswitch_install[@]}"
+	log_and_exec -su "Installing tfswitch" "${_tfswitch_install[@]}"
 	_tfswitch_set_version=(tfswitch 0.13.5)
-	log_and_exec -su -q "Setting terraform version" "${_tfswitch_set_version[@]}"
+	log_and_exec -su "Setting terraform version" "${_tfswitch_set_version[@]}"
 
 	_pyenv_install_dependencies=(sudo apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
-	log_and_exec -su -q "Installing pyenv dependencies" "${_pyenv_install_dependencies[@]}"
+	log_and_exec -su "Installing pyenv dependencies" "${_pyenv_install_dependencies[@]}"
 	_pyenv_install=(sh -c "$(curl -fsSL https://pyenv.run)")
-	log_and_exec -q "Installing pyenv" "${_pyenv_install[@]}"
-
+	log_and_exec "Installing pyenv" "${_pyenv_install[@]}"
 	_pyenv_path=(export PATH="$HOME"/.pyenv/bin:"$PATH")
-	log_and_exec -qq "Temporarily adding pyenv to path" "${_pyenv_path[@]}"
+	log_and_exec -q "Temporarily adding pyenv to path" "${_pyenv_path[@]}"
 	_pyenv_eval_0=(eval "$(pyenv init -)")
-	log_and_exec -qq "Temporarily adding pyenv eval 0" "${_pyenv_eval_0[@]}"
+	log_and_exec -q "Temporarily adding pyenv eval 0" "${_pyenv_eval_0[@]}"
 	_pyenv_eval_1=(eval "$(pyenv virtualenv-init -)")
-	log_and_exec -qq "Temporarily adding pyenv eval 1" "${_pyenv_eval_1[@]}"
-
-	_pyenv_set_global=(pyenv install 3.9.0)
+	log_and_exec -q "Temporarily adding pyenv eval 1" "${_pyenv_eval_1[@]}"
+	# _pyenv_set_global=(pyenv install 3.9.0)
+	_pyenv_set_global=(pyenv global 3.9.0)
 	log_and_exec "Setting global python version to 3.9.0" "${_pyenv_set_global[@]}"
+
+	_poetry_download=(curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O)
+	log_and_exec "Downloading Poetry" "${_poetry_download[@]}"
+	_poetry_install=(python get-poetry.py -y)
+	log_and_exec "Installing Poetry" "${_poetry_install[@]}"
+	_poetry_clean=(mv get-poetry.py "$HOME"/.poetry)
+	log_and_exec -q "Moving Poetry install script to ~/.poetry" "${_poetry_clean[@]}"
 }
 
 sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
-# sudo sed -i 's/auth       required   pam_shells.so/auth       sufficient   pam_shells.so/g' /etc/pam.d/chsh
 
 set_correct_working_dir
 git_config
 update_distro
 update_shell
 install_dev_tools
+
+code
 
 exec zsh
