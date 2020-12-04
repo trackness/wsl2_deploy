@@ -4,11 +4,7 @@
 # -u: exit on unset variables
 set -eu
 
-# Correct starting directory in Windows Terminal settings
-#	- add "startingDirectory": "//wsl$/Ubuntu/home/james/"
-
-set_correct_working_dir() {
-	# echo -n "Setting working directory to script location.. "
+function set_correct_working_dir() {
 	SOURCE="${BASH_SOURCE[0]}"
 	while [[ -h "$SOURCE" ]]; do
 		DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
@@ -16,95 +12,133 @@ set_correct_working_dir() {
 		[[ ${SOURCE} != /* ]] && SOURCE="$DIR/$SOURCE"
 	done
 	DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
-	# echo "Done: ${DIR}"
 }
 
-update_distro() {
-	message="Modernising distribution.."
-	echo -ne "${message} |····················| [   0% ]\r"
-	sudo apt-get -qq update -y > /dev/null 2>&1
-	echo -ne "${message} |>>>>················| [  20% ]\r"
-	sudo apt-get -qq upgrade -y > /dev/null 2>&1
-	echo -ne "${message} |>>>>>>>>············| [  40% ]\r"
-	sudo apt-get -qq dist-upgrade -y > /dev/null 2>&1
-	echo -ne "${message} |>>>>>>>>>>>>········| [  60% ]\r"
-	sudo apt-get -qq autoremove > /dev/null 2>&1
-	echo -ne "${message} |>>>>>>>>>>>>>>>>····| [  80% ]\r"
-	sudo apt-get -qq install git-all wget curl -y > /dev/null 2>&1
-	echo -ne "${message} |>>>>>>>>>>>>>>>>>>>>| [ 100% ]\r"
-	echo "${message} Done."
+function get_property {
+	PROP_FILE=${1}
+	PROP_KEY=${2}
+	PROP_VALUE=$(cat $PROP_FILE | grep $PROP_KEY | cut -d'=' -f2)
+	echo $PROP_VALUE
 }
 
-install_zsh() {
-	echo -n "Installing ZSH.."
-	sudo apt-get -qq install zsh -y  > /dev/null 2>&1
-	echo "Done."
-	echo -n "Installing Oh-My-Zsh.. "
-	sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended > /dev/null 2>&1
-	echo "Done."
-	echo -n "Changing default shell to ZSH.. "
-	sudo chsh -s $(which zsh) > /dev/null 2>&1
-	echo "Done: $(which zsh)"
-	echo -n "Installing Powerlevel10k.. "
-	git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k > /dev/null 2>&1
-	echo "Done."
-	echo -n "Copying .zshrc config.. "
-	cp ${DIR}/.zshrc ${HOME}
-	echo "Done."
-	echo -n "Copying .p10k.zsh config.. "
-	cp ${DIR}/.p10k.zsh ${HOME}
-	echo "Done."
+function git_config() {
+	_git_name=(git config --global user.name $(get_property "/mnt/c/Users/James/.gitconfig" "name"))
+	_git_email=(git config --global user.email $(get_property "/mnt/c/Users/James/.gitconfig" "email"))
+	_git_credential_manager=(git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe")
+
+	log_and_exec -q "Setting Github name" "${_git_name[@]}"
+	log_and_exec -q "Setting Github email" "${_git_name[@]}"
+	log_and_exec -q "Setting Github credential manager" "${_git_name[@]}"
 }
 
-log_and_exec() {
-	echo -n "${1}.. "
-	"${2[@]}"
-	echo "Done."
+function log_and_exec() {
+	local super=""
+	local volume=2
+
+	for arg in "$@"
+	do
+		case $arg in
+			-su|--super)
+				super="sudo "
+				shift
+				;;
+			-q|--quiet)
+				volume=1
+				shift
+				;;
+			-qq|--silent)
+				volume=0
+				shift
+				;;
+		esac
+	done
+
+    local message="${1}"
+    shift
+    local arr=("${@}")
+
+	case $volume in
+		0)
+			${super}"${arr[@]}" > /dev/null 2>&1
+			;;
+		1)
+			echo -n "${message}.. "
+			${super}"${arr[@]}" > /dev/null 2>&1
+			echo "Done."
+			;;
+		2)
+			echo "### ${message} ###"
+			${super}"${arr[@]}"
+			;;
+	esac
 }
 
-echo -n "Removing need for sudo password.. "
+function update_distro() {
+	_apt_get_update=(apt-get update -y)
+	_apt_get_dist_upgrade=(apt-get dist-upgrade -y)
+	_apt_get_install_basics=(apt-get install git-all wget curl -y)
+	_apt_get_autoremove=(apt-get autoremove)
+
+	log_and_exec -su -q "Updating package index" "${_apt_get_update[@]}"
+	log_and_exec -su -q "Upgrading packages" "${_apt_get_dist_upgrade[@]}"
+	log_and_exec -su -q "Installing basic packages" "${_apt_get_install_basics[@]}"
+	log_and_exec -su -q "Removing unneccessary dependencies" "${_apt_get_autoremove[@]}"
+}
+
+function update_shell() {
+	_zsh_install=(apt-get install zsh -y)
+	_oh_my_zsh=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended)
+	_powerlevel10k=(git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k)
+	_copy_zshrc=(cp ${DIR}/.zshrc ${HOME})
+	_copy_p10k=(cp ${DIR}/.p10k.zsh ${HOME})
+	_change_default_shell=(chsh -s $(which zsh))
+
+	log_and_exec -su -q "Installing ZSH" "${_zsh_install[@]}"
+	log_and_exec -q "Installing Oh-My-Zsh" "${_oh_my_zsh[@]}"
+	log_and_exec -q "Installing Powerlevel10k" "${_powerlevel10k[@]}"
+	log_and_exec -q "Copying .zshrc config" "${_copy_zshrc[@]}"
+	log_and_exec -q "Copying .p10k.zsh config" "${_copy_p10k[@]}"
+	log_and_exec -q "Changing default shell to ZSH" "${_change_default_shell[@]}"
+}
+
+function install_dev_tools() {
+	# echo -n "Installing Poetry.. "
+	# curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python - > /dev/null 2>&1
+	# echo "Done."
+
+	# VS Code Server
+	# code
+
+	_go_add=(add-apt-repository -y ppa:longsleep/golang-backports)
+	_go_update=(apt -y update)
+	_go_install=(apt -y install golang-go)
+	log_and_exec -su -q "Adding custom Go package source" "${_go_add[@]}"
+	log_and_exec -su -q "Updating Go package index" "${_go_update[@]}"
+	log_and_exec -su -q "Installing Go" "${_go_install[@]}"
+
+	_tfswitch_install=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)")
+	log_and_exec -q "Installing tfswitch" "${_tfswitch_install[@]}"
+
+	_pyenv_install_dependencies=(sudo apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
+	_pyenv_install=(sh -c "$(curl -fsSL https://pyenv.run)")
+	_pyenv_path=(export PATH=$HOME/.pyenv/bin:$PATH)
+	_pyenv_eval_0=(eval "$(pyenv init -)")
+	_pyenv_eval_1=(eval "$(pyenv virtualenv-init -)")
+	_pyenv_set_global=(pyenv install 3.9.0)
+	log_and_exec -su -q "Installing pyenv dependencies" "${_pyenv_install_dependencies[@]}"
+	log_and_exec -q "Installing pyenv" "${_pyenv_install[@]}"
+	log_and_exec -qq "Temporarily adding pyenv to path" "${_pyenv_path[@]}"
+	log_and_exec -qq "Temporarily adding pyenv eval 0" "${_pyenv_eval_0[@]}"
+	log_and_exec -qq "Temporarily adding pyenv eval 1" "${_pyenv_eval_1[@]}"
+	log_and_exec -q "Setting global python version to 3.9.0" "${_pyenv_set_global[@]}"
+}
+
 sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/${USER} > /dev/null 2>&1
-echo "Done."
-
-log_and_exec "Removing need for sudo password" cmd=( sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/${USER} )
 
 set_correct_working_dir
+git_config
 update_distro
-install_zsh
-
-
-
-echo -n "Setting git config.. "
-git config --global user.email "40263851+trackness@users.noreply.github.com"
-git config --global user.name "Trackness"
-git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe"
-echo "Done."
-
-echo -n "Installing Go.. "
-sudo add-apt-repository -y ppa:longsleep/golang-backports > /dev/null 2>&1
-sudo apt -qq -y update > /dev/null 2>&1
-sudo apt -qq -y install golang-go > /dev/null 2>&1
-echo "Done."
-
-echo -n "Installing tfswitch.. "
-curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh | bash > /dev/null 2>&1
-echo "Done."
-
-echo -n "Installing pyenv.. "
-curl -fsSL https://pyenv.run | bash > /dev/null 2>&1
-echo "export PATH=\"/home/${USER}/.pyenv/bin:"'$PATH"' >> ${HOME}/.zshrc
-echo 'eval "$(pyenv init -)"' >> ${HOME}/.zshrc
-echo 'eval "$(pyenv virtualenv-init -)"' >> ${HOME}/.zshrc
-echo "Done."
-echo -n "Setting global Python version.."
-pyenv install 3.9.0 > /dev/null 2>&1
-echo "Done."
-
-echo -n "Installing Poetry.. "
-curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python - > /dev/null 2>&1
-echo "Done."
-
-# # VS Code Server
-# code
+update_shell
+install_dev_tools
 
 exec zsh
