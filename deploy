@@ -35,7 +35,7 @@ function log_and_exec() {
 			fi
 			;;
 		1)
-			echo -n "${message}.. "
+			echo -n "### ${message}.. "
 			if [[ $super ]]; then
 				sudo "${arr[@]}" > /dev/null
 			else
@@ -94,7 +94,7 @@ function update_shell() {
 	_oh_my_zsh=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended)
 	log_and_exec "Installing Oh-My-Zsh" "${_oh_my_zsh[@]}"
 
-	_powerlevel10k=(git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"/themes/powerlevel10k --quiet)
+	_powerlevel10k=(git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"/themes/powerlevel10k)
 	log_and_exec "Installing Powerlevel10k" "${_powerlevel10k[@]}"
 
 	_copy_zshrc=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o ~/.zshrc)")
@@ -117,8 +117,8 @@ function install_dev_tools() {
 
 	_tfswitch_install=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)")
 	log_and_exec -su "Installing tfswitch" "${_tfswitch_install[@]}"
-	# _tfswitch_terraform_0135=(tfswitch 0.13.5)
-	# log_and_exec -su "Setting terraform version" "${_tfswitch_terraform_0135[@]}"
+	_tfswitch_terraform_0135=(tfswitch 0.13.5)
+	log_and_exec -su "Setting terraform version" "${_tfswitch_terraform_0135[@]}"
 
 	_pyenv_dependencies=(sudo apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
 	log_and_exec -su "Installing pyenv dependencies" "${_pyenv_dependencies[@]}"
@@ -140,7 +140,7 @@ function install_dev_tools() {
 	_poetry_install=(python get-poetry.py -y)
 	log_and_exec "Installing Poetry" "${_poetry_install[@]}"
 	_poetry_clean=(mv get-poetry.py "$HOME"/.poetry)
-	log_and_exec -q "Moving Poetry install script to ~/.poetry" "${_poetry_clean[@]}"
+	log_and_exec "Moving Poetry install script to ~/.poetry" "${_poetry_clean[@]}"
 }
 
 sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1

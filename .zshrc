@@ -34,3 +34,6 @@ alias tfswitch="sudo tfswitch"
 export PATH=$HOME/.pyenv/bin:$PATH
 eval "$(pyenv init -)"
 eval "$(pyenv virtualenv-init -)"
+
+# Poetry
+export PATH=$HOME/.poetry/bin:$PATH
