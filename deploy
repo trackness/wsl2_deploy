@@ -124,14 +124,14 @@ function install_dev_tools() {
 
 	_pyenv_install_dependencies=(sudo apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
 	log_and_exec -su "Installing pyenv dependencies" "${_pyenv_install_dependencies[@]}"
-	_pyenv_install=(sh -c "$(curl -fsSL https://pyenv.run)")
-	log_and_exec "Installing pyenv" "${_pyenv_install[@]}"
 	_pyenv_path=(export PATH="$HOME"/.pyenv/bin:"$PATH")
 	log_and_exec -q "Temporarily adding pyenv to path" "${_pyenv_path[@]}"
 	_pyenv_eval_0=(eval "$(pyenv init -)")
 	log_and_exec -q "Temporarily adding pyenv eval 0" "${_pyenv_eval_0[@]}"
 	_pyenv_eval_1=(eval "$(pyenv virtualenv-init -)")
 	log_and_exec -q "Temporarily adding pyenv eval 1" "${_pyenv_eval_1[@]}"
+	_pyenv_install=(sh -c "$(curl -fsSL https://pyenv.run)")
+	log_and_exec "Installing pyenv" "${_pyenv_install[@]}"
 	_pyenv_python_390=(pyenv install 3.9.0)
 	log_and_exec "Installing python 3.9.0" "${_pyenv_python_390[@]}"
 	_pyenv_set_global=(pyenv global 3.9.0)
