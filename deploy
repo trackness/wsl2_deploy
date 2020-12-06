@@ -1,4 +1,4 @@
-#! /usr/bin/bash
+#!/usr/bin/env bash
 
 function log_and_exec() {
 	local super=""
@@ -94,7 +94,7 @@ function update_shell() {
 	_oh_my_zsh=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended)
 	log_and_exec "Installing Oh-My-Zsh" "${_oh_my_zsh[@]}"
 
-	_powerlevel10k=(git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"/themes/powerlevel10k)
+	_powerlevel10k=(git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"/themes/powerlevel10k --quiet)
 	log_and_exec "Installing Powerlevel10k" "${_powerlevel10k[@]}"
 
 	_copy_zshrc=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o ~/.zshrc)")
@@ -108,8 +108,6 @@ function update_shell() {
 }
 
 function install_dev_tools() {
-	# _go_custom_repo_support=(apt-get -y install software-properties-common)
-	# log_and_exec -su -q "Adding support for custom package sources" "${_go_custom_repo_support[@]}"
 	_go_add=(add-apt-repository -y ppa:longsleep/golang-backports)
 	log_and_exec -su "Adding custom Go package source" "${_go_add[@]}"
 	_go_update=(apt-get -y update)
@@ -119,19 +117,19 @@ function install_dev_tools() {
 
 	_tfswitch_install=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)")
 	log_and_exec -su "Installing tfswitch" "${_tfswitch_install[@]}"
-	_tfswitch_terraform_0135=(tfswitch 0.13.5)
-	log_and_exec -su "Setting terraform version" "${_tfswitch_terraform_0135[@]}"
+	# _tfswitch_terraform_0135=(tfswitch 0.13.5)
+	# log_and_exec -su "Setting terraform version" "${_tfswitch_terraform_0135[@]}"
 
-	_pyenv_install_dependencies=(sudo apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
-	log_and_exec -su "Installing pyenv dependencies" "${_pyenv_install_dependencies[@]}"
+	_pyenv_dependencies=(sudo apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
+	log_and_exec -su "Installing pyenv dependencies" "${_pyenv_dependencies[@]}"
 	_pyenv_path=(export PATH="$HOME"/.pyenv/bin:"$PATH")
-	log_and_exec -q "Temporarily adding pyenv to path" "${_pyenv_path[@]}"
-	_pyenv_eval_0=(eval "$(pyenv init -)")
-	log_and_exec -q "Temporarily adding pyenv eval 0" "${_pyenv_eval_0[@]}"
-	_pyenv_eval_1=(eval "$(pyenv virtualenv-init -)")
-	log_and_exec -q "Temporarily adding pyenv eval 1" "${_pyenv_eval_1[@]}"
+	log_and_exec "Temporarily adding pyenv to path" "${_pyenv_path[@]}"
 	_pyenv_install=(sh -c "$(curl -fsSL https://pyenv.run)")
 	log_and_exec "Installing pyenv" "${_pyenv_install[@]}"
+	_pyenv_eval_0=(eval "$(pyenv init -)")
+	log_and_exec "Temporarily adding pyenv eval 0" "${_pyenv_eval_0[@]}"
+	_pyenv_eval_1=(eval "$(pyenv virtualenv-init -)")
+	log_and_exec "Temporarily adding pyenv eval 1" "${_pyenv_eval_1[@]}"
 	_pyenv_python_390=(pyenv install 3.9.0)
 	log_and_exec "Installing python 3.9.0" "${_pyenv_python_390[@]}"
 	_pyenv_set_global=(pyenv global 3.9.0)
@@ -147,7 +145,9 @@ function install_dev_tools() {
 
 sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
 
-set_correct_working_dir
+# WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
+
 git_config
 update_distro
 update_shell
