@@ -1,15 +1,5 @@
 #! /usr/bin/bash
 
-function set_correct_working_dir() {
-	SOURCE="${BASH_SOURCE[0]}"
-	while [[ -h "$SOURCE" ]]; do
-		DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
-		SOURCE="$(readlink "$SOURCE")"
-		[[ ${SOURCE} != /* ]] && SOURCE="$DIR/$SOURCE"
-	done
-	DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
-}
-
 function log_and_exec() {
 	local super=""
 	local volume=1
@@ -39,17 +29,17 @@ function log_and_exec() {
 	case $volume in
 		0)
 			if [[ $super ]]; then
-				sudo "${arr[@]}" > /dev/null 2>&1
+				sudo "${arr[@]}" > /dev/null
 			else
-				"${arr[@]}" > /dev/null 2>&1
+				"${arr[@]}" > /dev/null
 			fi
 			;;
 		1)
 			echo -n "${message}.. "
 			if [[ $super ]]; then
-				sudo "${arr[@]}" > /dev/null 2>&1
+				sudo "${arr[@]}" > /dev/null
 			else
-				"${arr[@]}" > /dev/null 2>&1
+				"${arr[@]}" > /dev/null
 			fi
 			echo "Done."
 			;;
@@ -107,10 +97,10 @@ function update_shell() {
 	_powerlevel10k=(git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"/themes/powerlevel10k)
 	log_and_exec "Installing Powerlevel10k" "${_powerlevel10k[@]}"
 
-	_copy_zshrc=(cp "$DIR"/.zshrc "$HOME")
+	_copy_zshrc=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o ~/.zshrc)")
 	log_and_exec "Copying .zshrc config" "${_copy_zshrc[@]}"
 
-	_copy_p10k=(cp "$DIR"/.p10k.zsh "$HOME")
+	_copy_p10k=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o ~/.p10k.zsh)")
 	log_and_exec "Copying .p10k.zsh config" "${_copy_p10k[@]}"
 
 	_change_default_shell=(chsh -s /usr/bin/zsh "$USER")
@@ -140,9 +130,10 @@ function install_dev_tools() {
 	log_and_exec -q "Temporarily adding pyenv eval 0" "${_pyenv_eval_0[@]}"
 	_pyenv_eval_1=(eval "$(pyenv virtualenv-init -)")
 	log_and_exec -q "Temporarily adding pyenv eval 1" "${_pyenv_eval_1[@]}"
-	# _pyenv_set_global=(pyenv install 3.9.0)
+	_pyenv_install_latest=(pyenv install 3.9.0)
+	log_and_exec "installing python 3.9.0" "${_pyenv_set_global[@]}"
 	_pyenv_set_global=(pyenv global 3.9.0)
-	log_and_exec "Setting global python version to 3.9.0" "${_pyenv_set_global[@]}"
+	log_and_exec "Setting global python to 3.9.0" "${_pyenv_set_global[@]}"
 
 	_poetry_download=(curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O)
 	log_and_exec "Downloading Poetry" "${_poetry_download[@]}"
@@ -160,6 +151,6 @@ update_distro
 update_shell
 install_dev_tools
 
-code
+code .
 
 exec zsh
