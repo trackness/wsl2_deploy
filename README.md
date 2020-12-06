@@ -23,5 +23,5 @@ Steps:
 To initiate, run:
 
 ```sh
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/deploy)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/deploy)"
 ```

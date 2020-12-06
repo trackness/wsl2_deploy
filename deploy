@@ -80,7 +80,7 @@ function update_distro() {
 	_apt_get_dist_upgrade=(apt-get dist-upgrade -y)
 	log_and_exec -su "Upgrading packages" "${_apt_get_dist_upgrade[@]}"
 
-	_apt_get_install_basics=(apt-get install git-all wget curl -y)
+	_apt_get_install_basics=(apt-get install git wget curl -y)
 	log_and_exec -su "Installing basic packages" "${_apt_get_install_basics[@]}"
 
 	_apt_get_autoremove=(apt-get autoremove)
@@ -108,19 +108,21 @@ function update_shell() {
 }
 
 function install_dev_tools() {
+	# _go_custom_repo_support=(apt-get -y install software-properties-common)
+	# log_and_exec -su -q "Adding support for custom package sources" "${_go_custom_repo_support[@]}"
 	_go_add=(add-apt-repository -y ppa:longsleep/golang-backports)
 	log_and_exec -su "Adding custom Go package source" "${_go_add[@]}"
-	_go_update=(apt -y update)
+	_go_update=(apt-get -y update)
 	log_and_exec -su "Updating Go package index" "${_go_update[@]}"
-	_go_install=(apt -y install golang-go)
+	_go_install=(apt-get -y install golang-go)
 	log_and_exec -su "Installing Go" "${_go_install[@]}"
 
 	_tfswitch_install=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)")
 	log_and_exec -su "Installing tfswitch" "${_tfswitch_install[@]}"
-	_tfswitch_set_version=(tfswitch 0.13.5)
-	log_and_exec -su "Setting terraform version" "${_tfswitch_set_version[@]}"
+	_tfswitch_terraform_0135=(tfswitch 0.13.5)
+	log_and_exec -su "Setting terraform version" "${_tfswitch_terraform_0135[@]}"
 
-	_pyenv_install_dependencies=(sudo apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
+	_pyenv_install_dependencies=(sudo apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
 	log_and_exec -su "Installing pyenv dependencies" "${_pyenv_install_dependencies[@]}"
 	_pyenv_install=(sh -c "$(curl -fsSL https://pyenv.run)")
 	log_and_exec "Installing pyenv" "${_pyenv_install[@]}"
@@ -130,8 +132,8 @@ function install_dev_tools() {
 	log_and_exec -q "Temporarily adding pyenv eval 0" "${_pyenv_eval_0[@]}"
 	_pyenv_eval_1=(eval "$(pyenv virtualenv-init -)")
 	log_and_exec -q "Temporarily adding pyenv eval 1" "${_pyenv_eval_1[@]}"
-	_pyenv_install_latest=(pyenv install 3.9.0)
-	log_and_exec "installing python 3.9.0" "${_pyenv_set_global[@]}"
+	_pyenv_python_390=(pyenv install 3.9.0)
+	log_and_exec "Installing python 3.9.0" "${_pyenv_python_390[@]}"
 	_pyenv_set_global=(pyenv global 3.9.0)
 	log_and_exec "Setting global python to 3.9.0" "${_pyenv_set_global[@]}"
 
