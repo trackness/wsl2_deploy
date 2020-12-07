@@ -15,12 +15,20 @@ function log_and_exec() {
 				volume=-0
 				shift
 				;;
-			-l|--loud)
+			-v|--verbose)
 				volume=2
+				shift
+				;;
+			-vv|--very-verbose)
+				volume=3
 				shift
 				;;
 		esac
 	done
+
+	if [[ $global_volume != "" ]]; then
+		volume=$global_volume
+	fi
 
     local message="${1}"
     shift
@@ -29,12 +37,21 @@ function log_and_exec() {
 	case $volume in
 		0)
 			if [[ $super ]]; then
-				sudo "${arr[@]}" > /dev/null
+				sudo "${arr[@]}" > /dev/null  2>&1
 			else
-				"${arr[@]}" > /dev/null
+				"${arr[@]}" > /dev/null 2>&1
 			fi
 			;;
 		1)
+			echo -n "### ${message}.. "
+			if [[ $super ]]; then
+				sudo "${arr[@]}" > /dev/null 2>&1
+			else
+				"${arr[@]}" > /dev/null 2>&1
+			fi
+			echo "Done."
+			;;
+		2)
 			echo -n "### ${message}.. "
 			if [[ $super ]]; then
 				sudo "${arr[@]}" > /dev/null
@@ -43,7 +60,7 @@ function log_and_exec() {
 			fi
 			echo "Done."
 			;;
-		2)
+		3)
 			echo "### ${message} ###"
 			if [[ $super ]]; then
 				sudo "${arr[@]}"
@@ -143,8 +160,9 @@ function install_dev_tools() {
 	log_and_exec "Moving Poetry install script to ~/.poetry" "${_poetry_clean[@]}"
 }
 
-sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
+global_volume=""
 
+sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
 # WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592
 echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
 
