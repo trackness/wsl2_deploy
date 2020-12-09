@@ -183,7 +183,7 @@ function git_clone_all() {
 	done
 }
 
-global_volume=3
+global_volume=""
 code_dir="$HOME/code"
 
 github_repos=(
