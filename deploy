@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+function wsl2_config() {
+	sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
+	echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null # WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592
+}
+
 function log_and_exec() {
 	local super=""
 	local volume=1
@@ -31,51 +36,53 @@ function log_and_exec() {
 	fi
 
     local message="${1}"
-    shift
-    local arr=("${@}")
+    local arr="$2"
 
 	case $volume in
 		0)
 			if [[ $super ]]; then
-				sudo "${arr[@]}" > /dev/null  2>&1
+				sudo bash -c "$arr" > /dev/null  2>&1
 			else
-				"${arr[@]}" > /dev/null 2>&1
+				bash -c "$arr" > /dev/null 2>&1
 			fi
 			;;
 		1)
 			echo -n "### ${message}.. "
 			# printf "### %-30s : %4d\n" "string 1" 12 "string 2" 122
 			if [[ $super ]]; then
-				sudo "${arr[@]}" > /dev/null 2>&1
+				sudo bash -c "$arr" > /dev/null 2>&1
 			else
-				"${arr[@]}" > /dev/null 2>&1
+				# printf "${arr}"
+				bash -c "$arr" > /dev/null 2>&1
 			fi
 			echo "Done."
 			;;
 		2)
 			echo -n "### ${message}.. "
 			if [[ $super ]]; then
-				sudo "${arr[@]}" > /dev/null
+				sudo bash -c "$arr" > /dev/null
 			else
-				"${arr[@]}" > /dev/null
+				bash -c "$arr" > /dev/null
 			fi
 			echo "Done."
 			;;
 		3)
-			echo "### ${message} ###"
+			echo "### $message ###"
 			if [[ $super ]]; then
-				sudo "${arr[@]}"
+				echo "$arr"
+				sudo bash -c "$arr"
 			else
-				"${arr[@]}"
+				echo "$arr"
+				bash -c "$arr"
 			fi
 			;;
 	esac
 }
 
 function get_property {
-	PROP_FILE=${1}
-	PROP_KEY=${2}
-	PROP_VALUE=$(cat "$PROP_FILE" | grep "$PROP_KEY" | cut -d '=' -f2)
+	PROP_FILE=$1
+	PROP_KEY=$2
+	PROP_VALUE=$(grep "$PROP_KEY" "$PROP_FILE" | cut -d '=' -f2)
 	shopt -s extglob
 	output="${PROP_VALUE##*( )}"
 	shopt -u extglob
@@ -83,94 +90,76 @@ function get_property {
 }
 
 function git_config() {
-
-	local -n cmds=$1
-	
-	for i in "${!cmds[@]}"
-	do
-		log_and_exec "$i" "${cmds[$i]}"
-	done
-
-	# _git_name=(git config --global user.name "$(get_property "/mnt/c/Users/James/.gitconfig" "name")")
-	# log_and_exec "Setting Github name" "${_git_name[@]}"
-	# _git_email=(git config --global user.email "$(get_property "/mnt/c/Users/James/.gitconfig" "email")")
-	# log_and_exec "Setting Github email" "${_git_email[@]}"
-	# _git_credential_manager=(git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe")
-	# log_and_exec "Setting Github credential manager" "${_git_credential_manager[@]}"
+	log_and_exec "Setting Github name" "git config --global user.name $(get_property "/mnt/c/Users/James/.gitconfig" "name")"
+	log_and_exec "Setting Github email" "git config --global user.email $(get_property "/mnt/c/Users/James/.gitconfig" "email")"
+	log_and_exec "Setting Github credential manager" 'git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe"'
 }
 
 function update_distro() {
-	_apt_get_update=(apt-get update -y)
-	log_and_exec -su "Updating package index" "${_apt_get_update[@]}"
-
-	_apt_get_dist_upgrade=(apt-get dist-upgrade -y)
-	log_and_exec -su "Upgrading packages" "${_apt_get_dist_upgrade[@]}"
-
-	_apt_get_install_basics=(apt-get install git wget curl -y)
-	log_and_exec -su "Installing basic packages" "${_apt_get_install_basics[@]}"
-
-	_apt_get_autoremove=(apt-get autoremove)
-	log_and_exec -su "Removing unneccessary dependencies" "${_apt_get_autoremove[@]}"
+	log_and_exec -su "Updating package index" "apt-get update -y"
+	log_and_exec -su "Upgrading packages" "apt-get dist-upgrade -y"
+	log_and_exec -su "Installing basic packages" "apt-get install git wget curl -y"
+	log_and_exec -su "Removing unneccessary dependencies" "apt-get autoremove"
 }
 
 function update_shell() {
-	_zsh_install=(apt-get install zsh -y)
-	log_and_exec -su "Installing ZSH" "${_zsh_install[@]}"
+	# _zsh_install=()
+	log_and_exec -su "Installing ZSH" "apt-get install zsh -y"
 
-	_oh_my_zsh=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended)
-	log_and_exec "Installing Oh-My-Zsh" "${_oh_my_zsh[@]}"
+	# _oh_my_zsh=()
+	log_and_exec "Installing Oh-My-Zsh" 'curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh "" --unattended'
 
-	_powerlevel10k=(git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"/themes/powerlevel10k)
-	log_and_exec "Installing Powerlevel10k" "${_powerlevel10k[@]}"
+	# _powerlevel10k=(git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"/themes/powerlevel10k)
+	log_and_exec "Installing Powerlevel10k" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
 
-	_copy_zshrc=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o ~/.zshrc)")
-	log_and_exec "Copying .zshrc config" "${_copy_zshrc[@]}"
+	# _copy_zshrc=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o ~/.zshrc)")
+	log_and_exec "Copying .zshrc config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
 
-	_copy_p10k=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o ~/.p10k.zsh)")
-	log_and_exec "Copying .p10k.zsh config" "${_copy_p10k[@]}"
+	# _copy_p10k=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o ~/.p10k.zsh)")
+	log_and_exec "Copying .p10k.zsh config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
 
-	_change_default_shell=(chsh -s /usr/bin/zsh "$USER")
-	log_and_exec -su "Changing default shell to ZSH" "${_change_default_shell[@]}"
+	# _change_default_shell=(chsh -s /usr/bin/zsh "$USER")
+	log_and_exec -su "Changing default shell to ZSH" "chsh -s /usr/bin/zsh $USER"
 }
 
 function install_dev_tools() {
-	_go_add=(add-apt-repository -y ppa:longsleep/golang-backports)
-	log_and_exec -su "Adding custom Go package source" "${_go_add[@]}"
-	_go_update=(apt-get -y update)
-	log_and_exec -su "Updating Go package index" "${_go_update[@]}"
-	_go_install=(apt-get -y install golang-go)
-	log_and_exec -su "Installing Go" "${_go_install[@]}"
+	# _go_add=()
+	# log_and_exec -su "Adding custom Go package source" "add-apt-repository -y ppa:longsleep/golang-backports"
+	# _go_update=()
+	# log_and_exec -su "Updating Go package index" "apt-get -y update"
+	# _go_install=()
+	log_and_exec -su "Installing Go" "apt-get -y install golang-go"
 
 	# git clone https://github.com/udhos/update-golang
 	# cd update-golang
 	# sudo ./update-golang.sh
 
-	_tfswitch_install=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)")
-	log_and_exec -su "Installing tfswitch" "${_tfswitch_install[@]}"
-	_tfswitch_terraform_0135=(tfswitch 0.13.5)
-	log_and_exec -su "Setting terraform version" "${_tfswitch_terraform_0135[@]}"
+	# _tfswitch_install=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)")
+	log_and_exec -su "Installing tfswitch" "curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh"
+	# _tfswitch_terraform_0135=(tfswitch 0.13.5)
+	log_and_exec -su "Setting terraform version" "tfswitch 0.13.5"
 
-	_pyenv_dependencies=(sudo apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
-	log_and_exec -su "Installing pyenv dependencies" "${_pyenv_dependencies[@]}"
-	_pyenv_path=(export PATH="$HOME"/.pyenv/bin:"$PATH")
-	log_and_exec "Temporarily adding pyenv to path" "${_pyenv_path[@]}"
-	_pyenv_install=(sh -c "$(curl -fsSL https://pyenv.run)")
-	log_and_exec "Installing pyenv" "${_pyenv_install[@]}"
-	_pyenv_eval_0=(eval "$(pyenv init -)")
-	log_and_exec "Temporarily adding pyenv eval 0" "${_pyenv_eval_0[@]}"
-	_pyenv_eval_1=(eval "$(pyenv virtualenv-init -)")
-	log_and_exec "Temporarily adding pyenv eval 1" "${_pyenv_eval_1[@]}"
-	_pyenv_python_390=(pyenv install 3.9.0)
-	log_and_exec "Installing python 3.9.0" "${_pyenv_python_390[@]}"
-	_pyenv_set_global=(pyenv global 3.9.0)
-	log_and_exec "Setting global python to 3.9.0" "${_pyenv_set_global[@]}"
+	# _pyenv_dependencies=(apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
+	log_and_exec -su "Installing pyenv dependencies" "apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev"
+	# _pyenv_path=(export PATH="$HOME"/.pyenv/bin:"$PATH")
+	log_and_exec "Temporarily adding pyenv to path" "export PATH=$HOME/.pyenv/bin:$PATH"
+	# _pyenv_install=(sh -c "$(curl -fsSL https://pyenv.run)")
+	log_and_exec "Installing pyenv" "curl -fsSL https://pyenv.run"
+	# _pyenv_eval_0=(eval "$(pyenv init -)")
+	log_and_exec "Temporarily adding pyenv eval 0" "eval $(pyenv init -)"
+	# _pyenv_eval_1=(eval "$(pyenv virtualenv-init -)")
+	log_and_exec "Temporarily adding pyenv eval 1" "eval $(pyenv virtualenv-init -)"
+	# _pyenv_python_390=(pyenv install 3.9.0)
+	log_and_exec "Installing python 3.9.0" "pyenv install 3.9.0"
+	# _pyenv_set_global=(pyenv global 3.9.0)
+	log_and_exec "Setting global python to 3.9.0" "pyenv global 3.9.0"
 
-	_poetry_download=(curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O)
-	log_and_exec "Downloading Poetry" "${_poetry_download[@]}"
-	_poetry_install=(python get-poetry.py -y)
-	log_and_exec "Installing Poetry" "${_poetry_install[@]}"
-	_poetry_clean=(mv get-poetry.py "$HOME"/.poetry)
-	log_and_exec "Moving Poetry install script to ~/.poetry" "${_poetry_clean[@]}"
+	# _poetry_download=(curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O)
+	log_and_exec "Downloading Poetry" "curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O"
+	# _poetry_install=(python get-poetry.py -y)
+	log_and_exec "Installing Poetry" "python get-poetry.py -y"
+	# _poetry_clean=(mv get-poetry.py "$HOME"/.poetry)
+	log_and_exec "Moving Poetry install script to ~/.poetry" "mv get-poetry.py $HOME/.poetry"
 
 	if [[ $global_volume != "q" ]]; then
 		printf '\n'
@@ -190,41 +179,27 @@ function git_clone_all() {
 	local targets=("${@}")
 	for i in "${targets[@]}"
 	do
-		# local _git_clone=(git clone "https://github.com/$i.git" "$1" --quiet)
-		# log_and_exec "Cloning repo to $1: $i" "${_git_clone[@]}"
-		log_and_exec "Cloning repo to $1: $i" "git clone \"https://github.com/$i.git\" \"$1\" --quiet"
+		log_and_exec "Cloning repo to $1: $i" "git clone https://github.com/$i.git $1 --quiet"
 	done
 }
 
-global_volume=""
+global_volume=3
 code_dir="$HOME/code"
-
-sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
-# WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592
-echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
-
-declare -a cmds_git_config=(
-	["Setting Github name"]="$(git config --global user.name "$(get_property "/mnt/c/Users/James/.gitconfig" "name")")"
-	["Setting Github email"]="$(git config --global user.email "$(get_property "/mnt/c/Users/James/.gitconfig" "email")")"
-	["Setting Github credential manager"]="$(git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe")"
-)
 
 github_repos=(
 	"trackness/wsl2_deploy"
+	"trackness/sentinel"
+	"trackness/splitwiser"
+	"getndazn/dazn-cli"
 	"getndazn/sre-grafana"
 )
 
-git_config "${cmds_git_config[@]}"
+wsl2_config
+git_config
 update_distro
 update_shell
 install_dev_tools
-
-mkdir "$code_dir"
-
 git_clone_all "$code_dir" "${github_repos[@]}"
 
-
-
 code .
-
 exec zsh
