@@ -44,6 +44,7 @@ function log_and_exec() {
 			;;
 		1)
 			echo -n "### ${message}.. "
+			# printf "### %-30s : %4d\n" "string 1" 12 "string 2" 122
 			if [[ $super ]]; then
 				sudo "${arr[@]}" > /dev/null 2>&1
 			else
@@ -82,12 +83,20 @@ function get_property {
 }
 
 function git_config() {
-	_git_name=(git config --global user.name "$(get_property "/mnt/c/Users/James/.gitconfig" "name")")
-	log_and_exec "Setting Github name" "${_git_name[@]}"
-	_git_email=(git config --global user.email "$(get_property "/mnt/c/Users/James/.gitconfig" "email")")
-	log_and_exec "Setting Github email" "${_git_email[@]}"
-	_git_credential_manager=(git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe")
-	log_and_exec "Setting Github credential manager" "${_git_credential_manager[@]}"
+
+	local -n cmds=$1
+	
+	for i in "${!cmds[@]}"
+	do
+		log_and_exec "$i" "${cmds[$i]}"
+	done
+
+	# _git_name=(git config --global user.name "$(get_property "/mnt/c/Users/James/.gitconfig" "name")")
+	# log_and_exec "Setting Github name" "${_git_name[@]}"
+	# _git_email=(git config --global user.email "$(get_property "/mnt/c/Users/James/.gitconfig" "email")")
+	# log_and_exec "Setting Github email" "${_git_email[@]}"
+	# _git_credential_manager=(git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe")
+	# log_and_exec "Setting Github credential manager" "${_git_credential_manager[@]}"
 }
 
 function update_distro() {
@@ -132,6 +141,10 @@ function install_dev_tools() {
 	_go_install=(apt-get -y install golang-go)
 	log_and_exec -su "Installing Go" "${_go_install[@]}"
 
+	# git clone https://github.com/udhos/update-golang
+	# cd update-golang
+	# sudo ./update-golang.sh
+
 	_tfswitch_install=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)")
 	log_and_exec -su "Installing tfswitch" "${_tfswitch_install[@]}"
 	_tfswitch_terraform_0135=(tfswitch 0.13.5)
@@ -158,18 +171,59 @@ function install_dev_tools() {
 	log_and_exec "Installing Poetry" "${_poetry_install[@]}"
 	_poetry_clean=(mv get-poetry.py "$HOME"/.poetry)
 	log_and_exec "Moving Poetry install script to ~/.poetry" "${_poetry_clean[@]}"
+
+	if [[ $global_volume != "q" ]]; then
+		printf '\n'
+		echo 
+		echo "### Dev Tool Versions ###"
+		echo "tfswitch: $(tfswitch -v)"
+		echo "terraform: $(terraform version)"
+		echo "go: $(go version)"
+		echo "pyenv: $(pyenv --version)"
+		echo "python: $(python --version)"
+	fi
+}
+
+function git_clone_all() {
+	local code_dir=$1
+	shift
+	local targets=("${@}")
+	for i in "${targets[@]}"
+	do
+		# local _git_clone=(git clone "https://github.com/$i.git" "$1" --quiet)
+		# log_and_exec "Cloning repo to $1: $i" "${_git_clone[@]}"
+		log_and_exec "Cloning repo to $1: $i" "git clone \"https://github.com/$i.git\" \"$1\" --quiet"
+	done
 }
 
 global_volume=""
+code_dir="$HOME/code"
 
 sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
 # WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592
 echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
 
-git_config
+declare -a cmds_git_config=(
+	["Setting Github name"]="$(git config --global user.name "$(get_property "/mnt/c/Users/James/.gitconfig" "name")")"
+	["Setting Github email"]="$(git config --global user.email "$(get_property "/mnt/c/Users/James/.gitconfig" "email")")"
+	["Setting Github credential manager"]="$(git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe")"
+)
+
+github_repos=(
+	"trackness/wsl2_deploy"
+	"getndazn/sre-grafana"
+)
+
+git_config "${cmds_git_config[@]}"
 update_distro
 update_shell
 install_dev_tools
+
+mkdir "$code_dir"
+
+git_clone_all "$code_dir" "${github_repos[@]}"
+
+
 
 code .
 

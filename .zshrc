@@ -21,11 +21,12 @@ plugins=(git)
 
 source $ZSH/oh-my-zsh.sh
 
+# WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
+
 # Aliases
 alias zshconfig="code ~/.zshrc"
 alias ohmyzsh="code ~/.oh-my-zsh"
-
-alias tfswitch="sudo tfswitch"
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
@@ -35,5 +36,13 @@ export PATH=$HOME/.pyenv/bin:$PATH
 eval "$(pyenv init -)"
 eval "$(pyenv virtualenv-init -)"
 
-# Poetry
+# poetry
 export PATH=$HOME/.poetry/bin:$PATH
+
+# go
+export GOPATH="$HOME/Go" # or any directory to put your Go code
+export PATH="$PATH:/usr/local/go/bin:$GOPATH/bin"
+
+# tfswitch / terraform
+alias tfswitch="sudo tfswitch"
+alias terarform="sudo terraform"
