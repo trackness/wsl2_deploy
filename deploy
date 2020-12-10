@@ -3,7 +3,6 @@
 function wsl2_config() {
 	sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
 	echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null # WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592
-	mkdir "$code_dir"
 }
 
 function log_and_exec() {
@@ -70,10 +69,10 @@ function log_and_exec() {
 		3)
 			echo "### $message ###"
 			if [[ $super ]]; then
-				echo "$arr"
+				# echo "$arr"
 				sudo bash -c "$arr"
 			else
-				echo "$arr"
+				# echo "$arr"
 				bash -c "$arr"
 			fi
 			;;
@@ -105,71 +104,67 @@ function update_distro() {
 
 function update_shell() {
 	log_and_exec -su "Installing ZSH" "apt-get install zsh -y"
-
-	# log_and_exec "Installing Oh-My-Zsh" "$"(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended"
-	log_and_exec "Installing Oh-My-Zsh" '$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
-	# _powerlevel10k=(git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"/themes/powerlevel10k)
-	# log_and_exec "Installing Powerlevel10k" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
-
-	# log_and_exec "Copying .zshrc config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
-	# log_and_exec "Copying .p10k.zsh config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
-
-	# _change_default_shell=(chsh -s /usr/bin/zsh "$USER")
-	# log_and_exec -su "Changing default shell to ZSH" "chsh -s /usr/bin/zsh $USER"
+	log_and_exec "Installing Oh-My-Zsh" "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh) \"\" --unattended"
+	log_and_exec "Installing Powerlevel10k" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+	log_and_exec "Copying .zshrc config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
+	log_and_exec "Copying .p10k.zsh config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
+	log_and_exec -su "Changing default shell to ZSH" "chsh -s /usr/bin/zsh $USER"
 }
 
 function install_dev_tools() {
-	log_and_exec -su "Installing Go" "apt-get -y install golang-go"
-
-	# _tfswitch_install=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)")
-	log_and_exec -su "Installing tfswitch" "curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh"
-	# _tfswitch_terraform_0135=(tfswitch 0.13.5)
-	log_and_exec -su "Setting terraform version" "tfswitch 0.13.5"
+	# log_and_exec -su "Installing Go" "apt-get -y install golang-go"
+	# log_and_exec -su "Installing tfswitch" "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)"
+	# log_and_exec -su "Setting terraform version" "tfswitch 0.13.5"
 
 	# _pyenv_dependencies=(apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
-	log_and_exec -su "Installing pyenv dependencies" "apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev"
+	# log_and_exec -su "Installing pyenv dependencies" "apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev"
 	# _pyenv_path=(export PATH="$HOME"/.pyenv/bin:"$PATH")
-	log_and_exec "Temporarily adding pyenv to path" "export PATH=$HOME/.pyenv/bin:$PATH"
+	# log_and_exec "Temporarily adding pyenv to path" "export PATH=$HOME/.pyenv/bin:$PATH"
 	# _pyenv_install=(sh -c "$(curl -fsSL https://pyenv.run)")
-	log_and_exec "Installing pyenv" "curl -fsSL https://pyenv.run"
+	# log_and_exec "Installing pyenv" "curl -fsSL https://pyenv.run"
 	# _pyenv_eval_0=(eval "$(pyenv init -)")
-	log_and_exec "Temporarily adding pyenv eval 0" "eval $(pyenv init -)"
+	# log_and_exec "Temporarily adding pyenv eval 0" "eval $(pyenv init -)"
 	# _pyenv_eval_1=(eval "$(pyenv virtualenv-init -)")
-	log_and_exec "Temporarily adding pyenv eval 1" "eval $(pyenv virtualenv-init -)"
+	# log_and_exec "Temporarily adding pyenv eval 1" "eval $(pyenv virtualenv-init -)"
 	# _pyenv_python_390=(pyenv install 3.9.0)
-	log_and_exec "Installing python 3.9.0" "pyenv install 3.9.0"
+	# log_and_exec "Installing python 3.9.0" "pyenv install 3.9.0"
 	# _pyenv_set_global=(pyenv global 3.9.0)
-	log_and_exec "Setting global python to 3.9.0" "pyenv global 3.9.0"
+	# log_and_exec "Setting global python to 3.9.0" "pyenv global 3.9.0"
 
 	# _poetry_download=(curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O)
-	log_and_exec "Downloading Poetry" "curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O"
+	# log_and_exec "Downloading Poetry" "curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O"
 	# _poetry_install=(python get-poetry.py -y)
-	log_and_exec "Installing Poetry" "python get-poetry.py -y"
+	# log_and_exec "Installing Poetry" "python get-poetry.py -y"
 	# _poetry_clean=(mv get-poetry.py "$HOME"/.poetry)
-	log_and_exec "Moving Poetry install script to ~/.poetry" "mv get-poetry.py $HOME/.poetry"
+	# log_and_exec "Moving Poetry install script to ~/.poetry" "mv get-poetry.py $HOME/.poetry"
 
-	if [[ $global_volume != "q" ]]; then
-		printf '\n'
-		echo "### Dev Tool Versions ###"
-		echo "tfswitch: $(tfswitch -v)"
-		echo "terraform: $(terraform version)"
-		echo "go: $(go version)"
-		echo "pyenv: $(pyenv --version)"
-		echo "python: $(python --version)"
-	fi
+	# if [[ $global_volume != "q" ]]; then
+	# 	echo "### Dev Tool Versions ###"
+	# 	echo "tfswitch: $(tfswitch -v)"
+	# 	echo "terraform: $(sudo terraform version)"
+	# 	echo "go: $(go version)"
+	# 	echo "pyenv: $(pyenv --version)"
+	# 	echo "python: $(python --version)"
+	# fi
 }
 
 function git_clone_all() {
 	local code_dir=$1
 	shift
-	local targets=("${@}")
-	for i in "${targets[@]}"
+	[ ! -d "$code_dir" ] && mkdir "$code_dir"
+	local repos=("${@}")
+	for i in "${repos[@]}"
 	do
-		log_and_exec "Cloning repo to $1: $i" "git clone https://github.com/$i.git $1 --quiet"
+		local cmd=true
+		local repo
+		repo=$(echo "$i" | cut -d "/" -f 2)
+		[ ! -d "$code_dir/$repo" ] && cmd="git clone https://github.com/$i.git $code_dir/$repo --quiet"
+		log_and_exec "Cloning repo to $code_dir/$repo" "$cmd"
+		# echo "$repo present: $cmd"
 	done
 }
 
-global_volume=""
+global_volume=3
 code_dir="$HOME/code"
 
 github_repos=(
@@ -180,11 +175,11 @@ github_repos=(
 	"getndazn/sre-grafana"
 )
 
-wsl2_config
-git_config
-update_distro
-update_shell
-# install_dev_tools
+# wsl2_config
+# git_config
+# update_distro
+# update_shell
+install_dev_tools
 # git_clone_all "$code_dir" "${github_repos[@]}"
 
 # code .
