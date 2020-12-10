@@ -3,6 +3,7 @@
 function wsl2_config() {
 	sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
 	echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null # WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592
+	mkdir "$code_dir"
 }
 
 function log_and_exec() {
@@ -103,36 +104,22 @@ function update_distro() {
 }
 
 function update_shell() {
-	# _zsh_install=()
 	log_and_exec -su "Installing ZSH" "apt-get install zsh -y"
 
-	# _oh_my_zsh=()
-	log_and_exec "Installing Oh-My-Zsh" 'curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh "" --unattended'
-
+	# log_and_exec "Installing Oh-My-Zsh" "$"(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended"
+	log_and_exec "Installing Oh-My-Zsh" '$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
 	# _powerlevel10k=(git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"/themes/powerlevel10k)
-	log_and_exec "Installing Powerlevel10k" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+	# log_and_exec "Installing Powerlevel10k" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
 
-	# _copy_zshrc=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o ~/.zshrc)")
-	log_and_exec "Copying .zshrc config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
-
-	# _copy_p10k=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o ~/.p10k.zsh)")
-	log_and_exec "Copying .p10k.zsh config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
+	# log_and_exec "Copying .zshrc config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
+	# log_and_exec "Copying .p10k.zsh config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
 
 	# _change_default_shell=(chsh -s /usr/bin/zsh "$USER")
-	log_and_exec -su "Changing default shell to ZSH" "chsh -s /usr/bin/zsh $USER"
+	# log_and_exec -su "Changing default shell to ZSH" "chsh -s /usr/bin/zsh $USER"
 }
 
 function install_dev_tools() {
-	# _go_add=()
-	# log_and_exec -su "Adding custom Go package source" "add-apt-repository -y ppa:longsleep/golang-backports"
-	# _go_update=()
-	# log_and_exec -su "Updating Go package index" "apt-get -y update"
-	# _go_install=()
 	log_and_exec -su "Installing Go" "apt-get -y install golang-go"
-
-	# git clone https://github.com/udhos/update-golang
-	# cd update-golang
-	# sudo ./update-golang.sh
 
 	# _tfswitch_install=(sh -c "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)")
 	log_and_exec -su "Installing tfswitch" "curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh"
@@ -163,7 +150,6 @@ function install_dev_tools() {
 
 	if [[ $global_volume != "q" ]]; then
 		printf '\n'
-		echo 
 		echo "### Dev Tool Versions ###"
 		echo "tfswitch: $(tfswitch -v)"
 		echo "terraform: $(terraform version)"
@@ -198,8 +184,8 @@ wsl2_config
 git_config
 update_distro
 update_shell
-install_dev_tools
-git_clone_all "$code_dir" "${github_repos[@]}"
+# install_dev_tools
+# git_clone_all "$code_dir" "${github_repos[@]}"
 
-code .
-exec zsh
+# code .
+# exec zsh
