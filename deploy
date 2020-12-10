@@ -111,9 +111,8 @@ function install_dev_tools() {
 	log_and_exec -su "Installing Go" "apt-get -y install golang-go"
 	log_and_exec -su "Installing tfswitch" "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)"
 	log_and_exec -su "Setting terraform version" "tfswitch 0.13.5"
-
-	# _pyenv_dependencies=(apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
-	# log_and_exec -su "Installing pyenv dependencies" "apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev"
+	log_and_exec -su "Installing pyenv dependencies" "apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev"
+	
 	# _pyenv_path=(export PATH="$HOME"/.pyenv/bin:"$PATH")
 	# log_and_exec "Temporarily adding pyenv to path" "export PATH=$HOME/.pyenv/bin:$PATH"
 	# _pyenv_install=(sh -c "$(curl -fsSL https://pyenv.run)")
@@ -133,15 +132,6 @@ function install_dev_tools() {
 	# log_and_exec "Installing Poetry" "python get-poetry.py -y"
 	# _poetry_clean=(mv get-poetry.py "$HOME"/.poetry)
 	# log_and_exec "Moving Poetry install script to ~/.poetry" "mv get-poetry.py $HOME/.poetry"
-
-	# if [[ $global_volume != "q" ]]; then
-	# 	echo "### Dev Tool Versions ###"
-	# 	echo "tfswitch: $(tfswitch -v)"
-	# 	echo "terraform: $(sudo terraform version)"
-	# 	echo "go: $(go version)"
-	# 	echo "pyenv: $(pyenv --version)"
-	# 	echo "python: $(python --version)"
-	# fi
 }
 
 function git_clone_all() {
