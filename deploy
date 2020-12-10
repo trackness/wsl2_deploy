@@ -48,11 +48,9 @@ function log_and_exec() {
 			;;
 		1)
 			echo -n "### ${message}.. "
-			# printf "### %-30s : %4d\n" "string 1" 12 "string 2" 122
 			if [[ $super ]]; then
 				sudo bash -c "$arr" > /dev/null 2>&1
 			else
-				# printf "${arr}"
 				bash -c "$arr" > /dev/null 2>&1
 			fi
 			echo "Done."
@@ -69,10 +67,8 @@ function log_and_exec() {
 		3)
 			echo "### $message ###"
 			if [[ $super ]]; then
-				# echo "$arr"
 				sudo bash -c "$arr"
 			else
-				# echo "$arr"
 				bash -c "$arr"
 			fi
 			;;
@@ -112,9 +108,9 @@ function update_shell() {
 }
 
 function install_dev_tools() {
-	# log_and_exec -su "Installing Go" "apt-get -y install golang-go"
-	# log_and_exec -su "Installing tfswitch" "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)"
-	# log_and_exec -su "Setting terraform version" "tfswitch 0.13.5"
+	log_and_exec -su "Installing Go" "apt-get -y install golang-go"
+	log_and_exec -su "Installing tfswitch" "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)"
+	log_and_exec -su "Setting terraform version" "tfswitch 0.13.5"
 
 	# _pyenv_dependencies=(apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev)
 	# log_and_exec -su "Installing pyenv dependencies" "apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl libncurses5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev"
@@ -160,7 +156,6 @@ function git_clone_all() {
 		repo=$(echo "$i" | cut -d "/" -f 2)
 		[ ! -d "$code_dir/$repo" ] && cmd="git clone https://github.com/$i.git $code_dir/$repo --quiet"
 		log_and_exec "Cloning repo to $code_dir/$repo" "$cmd"
-		# echo "$repo present: $cmd"
 	done
 }
 
@@ -175,12 +170,12 @@ github_repos=(
 	"getndazn/sre-grafana"
 )
 
-# wsl2_config
-# git_config
-# update_distro
-# update_shell
+wsl2_config
+git_config
+update_distro
+update_shell
 install_dev_tools
-# git_clone_all "$code_dir" "${github_repos[@]}"
+git_clone_all "$code_dir" "${github_repos[@]}"
 
-# code .
-# exec zsh
+code .
+exec zsh
