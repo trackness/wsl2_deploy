@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+readonly global_volume=""
+readonly SKIP_INSTALLED="Already installed, skipping."
+readonly code_dir="$HOME/code"
+
 function wsl2_config() {
 	sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
 	echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null # WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592
@@ -98,33 +102,85 @@ function update_distro() {
 	log_and_exec -su "Removing unneccessary dependencies" "apt-get autoremove"
 }
 
-function update_shell() {
-	log_and_exec -su "Installing ZSH" "apt-get install zsh -y"
-	log_and_exec "Installing Oh-My-Zsh" "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh) \"\" --unattended"
-	log_and_exec "Installing Powerlevel10k" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
-	log_and_exec "Copying .zshrc config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
-	log_and_exec "Copying .p10k.zsh config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
-	log_and_exec -su "Changing default shell to ZSH" "chsh -s /usr/bin/zsh $USER"
+function install_zsh_omz_powerlevel10k() {
+	function chk_zsh() {
+		dpkg -s zsh &> /dev/null
+	}
+
+	function chk_omz() {
+		[ -f "$HOME"/.oh-my-zsh/oh-my-zsh.sh ]
+	}
+
+	function chk_plk() {
+		[ -d "$HOME"/.oh-my-zsh/custom/themes/powerlevel10 ]
+	}
+
+	local msg="Installing ZSH"
+	if chk_zsh; then
+		echo "### $msg.. $SKIP_INSTALLED"
+	else
+		log_and_exec -su "$msg" "apt-get -y install zsh"
+		log_and_exec -su "Changing default shell to ZSH" "chsh -s /usr/bin/zsh $USER"
+	fi
+
+	msg="Installing Oh-My-Zsh"
+	if chk_omz; then
+		echo "### $msg.. $SKIP_INSTALLED"
+	else
+		if ! chk_zsh; then
+			echo "### $msg.. ZSH not installed, skipping."
+			return
+		fi
+		log_and_exec "$msg" "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh) \"\" --unattended"
+		log_and_exec "Copying .zshrc config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
+	fi
+
+	msg="Installing Powerlevl10k"
+	if chk_plk; then
+		echo "### $msg.. $SKIP_INSTALLED"
+	else
+		if ! chk_omz; then
+			echo "### $msg.. Oh-My-Zsh not installed, skipping."
+			return
+		fi
+		if ! chk_zsh; then
+			echo "### $msg.. ZSH not installed, skipping."
+			return
+		fi
+		log_and_exec "$msg" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10"
+		log_and_exec "Copying .p10k.zsh config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
+		# TODO : update .zshrc theme here
+		# TODO : add [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh to .zshrc
+	fi
+}
+
+function install_go() {
+	local msg="Installing Go"
+	if dpkg -s golang-go &> /dev/null; then
+		echo "### $msg.. $SKIP_INSTALLED"
+	else
+		log_and_exec -su "$msg" "apt-get -y install golang-go"
+		# TODO : add gopath and gobin exports to .zshrc
+	fi
+}
+
+function install_tfswitch_terraform() {
+	local msg="Installing Go"
+	# TODO : check for existing installation
+	log_and_exec -su "Installing tfswitch" "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)"
+	if [ -z ${1+x} ]; then
+		log_and_exec -su "Setting terraform version" "tfswitch $1"
+	fi
 }
 
 function install_dev_tools() {
-	log_and_exec -su "Installing Go" "apt-get -y install golang-go"
-	log_and_exec -su "Installing tfswitch" "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)"
-	log_and_exec -su "Setting terraform version" "tfswitch 0.13.5"
-	log_and_exec -su "Installing pyenv dependencies" "apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev"
-	
-	# _pyenv_path=(export PATH="$HOME"/.pyenv/bin:"$PATH")
-	# log_and_exec "Temporarily adding pyenv to path" "export PATH=$HOME/.pyenv/bin:$PATH"
-	# _pyenv_install=(sh -c "$(curl -fsSL https://pyenv.run)")
-	# log_and_exec "Installing pyenv" "curl -fsSL https://pyenv.run"
-	# _pyenv_eval_0=(eval "$(pyenv init -)")
-	# log_and_exec "Temporarily adding pyenv eval 0" "eval $(pyenv init -)"
-	# _pyenv_eval_1=(eval "$(pyenv virtualenv-init -)")
-	# log_and_exec "Temporarily adding pyenv eval 1" "eval $(pyenv virtualenv-init -)"
-	# _pyenv_python_390=(pyenv install 3.9.0)
-	# log_and_exec "Installing python 3.9.0" "pyenv install 3.9.0"
-	# _pyenv_set_global=(pyenv global 3.9.0)
-	# log_and_exec "Setting global python to 3.9.0" "pyenv global 3.9.0"
+	# log_and_exec -su "Installing pyenv dependencies" "apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev"
+	export PATH="$HOME"/.pyenv/bin:"$PATH"
+	log_and_exec "Installing pyenv" "$(curl -fsSL https://pyenv.run)"
+	# eval $(pyenv init -)
+	# eval $(pyenv virtualenv-init -)
+	log_and_exec "Installing python 3.9.0" "pyenv install 3.9.0"
+	log_and_exec "Setting global python to 3.9.0" "pyenv global 3.9.0"
 
 	# _poetry_download=(curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O)
 	# log_and_exec "Downloading Poetry" "curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O"
@@ -135,8 +191,6 @@ function install_dev_tools() {
 }
 
 function git_clone_all() {
-	local code_dir=$1
-	shift
 	[ ! -d "$code_dir" ] && mkdir "$code_dir"
 	local repos=("${@}")
 	for i in "${repos[@]}"
@@ -149,9 +203,6 @@ function git_clone_all() {
 	done
 }
 
-global_volume=3
-code_dir="$HOME/code"
-
 github_repos=(
 	"trackness/wsl2_deploy"
 	"trackness/sentinel"
@@ -163,9 +214,12 @@ github_repos=(
 wsl2_config
 git_config
 update_distro
-update_shell
-install_dev_tools
-git_clone_all "$code_dir" "${github_repos[@]}"
+install_zsh_omz_powerlevel10k
+install_go
+# install_tfswitch_terraform 0_13_5
+# install_pyenv_python 3_9_0
+# install_poetry
+git_clone_all "${github_repos[@]}"
 
-code .
-exec zsh
+# code .
+# exec zsh
