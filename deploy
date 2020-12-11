@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 
-readonly GLOBAL_VOLUME=""
+readonly GLOBAL_VOLUME=3
 readonly SKIP_INSTALLED="Already installed, skipping."
 readonly CODE_DIR="$HOME/code"
+readonly BIN_DIR="$HOME/bin"
 
 function wsl2_config() {
 	sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
 	echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null # WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592
+	[ ! -d "$BIN_DIR" ] && mkdir "$BIN_DIR"
 }
 
 function grp_zrc() {
-	grep -q $1 "$HOME"/.zshrc
+	grep -q "$1" "$HOME/.zshrc"
 }
 
 function log_and_exec() {
@@ -102,8 +104,8 @@ function git_config() {
 function update_distro() {
 	log_and_exec -su "Updating package index" "apt-get update -y"
 	log_and_exec -su "Upgrading packages" "apt-get dist-upgrade -y"
-	log_and_exec -su "Installing basic packages" "apt-get install git wget curl -y"
-	log_and_exec -su "Removing unneccessary dependencies" "apt-get autoremove"
+	# log_and_exec -su "Installing basic packages" "apt-get install git wget curl -y"
+	log_and_exec -su "Removing unneccessary dependencies" "apt-get autoremove -y"
 }
 
 function install_zsh_omz_powerlevel10k() {
@@ -116,7 +118,7 @@ function install_zsh_omz_powerlevel10k() {
 	}
 
 	function chk_plk() {
-		[ -d "$HOME"/.oh-my-zsh/custom/themes/powerlevel10 ]
+		[ -d "$HOME/.oh-my-zsh/custom/themes/powerlevel10" ]
 	}
 
 	local msg="Installing ZSH"
@@ -137,7 +139,7 @@ function install_zsh_omz_powerlevel10k() {
 		fi
 		log_and_exec "$msg" "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh) \"\" --unattended"
 		log_and_exec "Copying .zshrc config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
-		if ! grp_zrc 'WSL2 DNS bug workaround'; then
+		if ! grp_zrc "WSL2 DNS bug workaround"; then
 			printf '\n%s' \
 			'# WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592' \
 			'echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null' \
@@ -157,32 +159,28 @@ function install_zsh_omz_powerlevel10k() {
 		if ! chk_omz; then
 			echo "### $msg.. Oh-My-Zsh not installed, skipping."
 			return
+		else
+			log_and_exec "$msg" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10"
+			log_and_exec "Copying .p10k.zsh config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
+			if ! grp_zrc "Enable Powerlevel10k instant prompt"; then			
+				sed -i '1s|^|# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.\n|' "$HOME"/.zshrc
+				sed -i '2s|^|# Initialization code that may require console input (password prompts, [y/n]\n|' "$HOME"/.zshrc
+				sed -i '3s|^|# confirmations, etc.) must go above this block; everything else may go below.\n|' "$HOME"/.zshrc
+				sed -i '4s|^|if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then\n|' "$HOME"/.zshrc
+				sed -i '5s|^|\tsource "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"\n|' "$HOME"/.zshrc
+				sed -i '6s|^|fi\n\n|' "$HOME"/.zshrc
+			fi
+			if ! grp_zrc "powerlevel10k/powerlevel10k"; then
+				sed -i 's/ZSH_THEME="robbyrussell"/# ZSH_THEME="robbyrussell"/' "$HOME"/.zshrc # deactivate but preserve robyrussell theme
+				sed -i 's/# ZSH_THEME="robbyrussell"/&\nZSH_THEME="powerlevel10k\/powerlevel10k"/' "$HOME"/.zshrc # add powerline theme
+			fi
+			if ! grp_zrc ".p10k.zsh"; then
+				printf '\n%s' \
+				'# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.' \
+				'[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' \
+				'' >> "$HOME"/.zshrc
+			fi
 		fi
-		if ! chk_zsh; then
-			echo "### $msg.. ZSH not installed, skipping."
-			return
-		fi
-		log_and_exec "$msg" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10"
-		log_and_exec "Copying .p10k.zsh config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
-		if ! grp_zrc ''; then			
-			sed -i '1s|^|# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.\n|' "$HOME"/.zshrc
-			sed -i '2s|^|# Initialization code that may require console input (password prompts, [y/n]\n|' "$HOME"/.zshrc
-			sed -i '3s|^|# confirmations, etc.) must go above this block; everything else may go below.\n|' "$HOME"/.zshrc
-			sed -i '4s|^|if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then\n|' "$HOME"/.zshrc
-			sed -i '5s|^|\tsource "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"\n|' "$HOME"/.zshrc
-			sed -i '6s|^|fi\n\n|' "$HOME"/.zshrc
-		fi
-		if ! grp_zrc 'powerlevel10k/powerlevel10k'; then
-			sed -i 's/ZSH_THEME="robbyrussell"/# ZSH_THEME="robbyrussell"/' "$HOME"/.zshrc # deactivate but preserve robyrussell theme
-			sed -i 's/# ZSH_THEME="robbyrussell"/&\nZSH_THEME="powerlevel10k\/powerlevel10k"/' "$HOME"/.zshrc # add powerline theme
-		fi
-		if ! grp_zrc '.p10k.zsh'; then
-			printf '\n%s' \
-			'# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.' \
-			'[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' \
-			'' >> "$HOME"/.zshrc
-		fi
-		
 	fi
 }
 
@@ -191,12 +189,12 @@ function install_go() {
 	if dpkg -s golang-go &> /dev/null; then
 		echo "### $msg.. $SKIP_INSTALLED"
 	else
+		[[ ! -d "$HOME"/go ]] && mkdir "$HOME"/go
 		if ! grp_zrc '# go'; then
-			[[ ! -d "$HOME"/go ]] && mkdir "$HOME"/go
 			printf '\n%s' \
 			'# go' \
-			"export GOPATH=\"$HOME/go\"" \
-			"export PATH=\"$PATH:/usr/local/go/bin:$GOPATH/bin\"" \
+			'export GOPATH=\"$HOME/go"' \
+			'export PATH="$PATH:/usr/local/go/bin:$GOPATH/bin"' \
 			'' >> "$HOME"/.zshrc
 		fi
 		log_and_exec -su "$msg" "apt-get -y install golang-go"
@@ -207,7 +205,7 @@ function install_tfswitch_terraform() {
 	local tf_ver=$1
 
 	chk_tfs() {
-		[ -f /usr/local/bin/tfswitch ]
+		[ -f "$HOME/bin/tfswitch" ]
 	}
 
 	chk_tfv() {
@@ -219,14 +217,21 @@ function install_tfswitch_terraform() {
 		echo "### $msg.. $SKIP_INSTALLED"
 	else
 		# might need to re-add -su here
-		log_and_exec "$msg" "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)"
+		log_and_exec "Downloading tfswitch" "curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh -O"
+		chmod 755 install.sh
+		log_and_exec "$msg" "./install.sh -b $BIN_DIR"
+		rm install.sh
+		# log_and_exec "Moving tfswitch install script to ~/.poetry" "mv get-poetry.py $BIN_DIR/"
 	fi
 
 	msg="Installing Terraform"
 	if [ -n "$tf_ver" ]; then
 		if chk_tfs; then
+			# if chk_tfv; then
 			# might need to re-add -su here
-			log_and_exec "$msg $tf_ver" "tfswitch $tf_ver"
+			# log_and_exec "$msg $tf_ver" "tfswitch $tf_ver"
+			echo "### $msg Placeholder pending version checker"
+			# fi
 		else
 			echo "### $msg.. tfswitch not installed, skipping."
 		fi
@@ -234,7 +239,11 @@ function install_tfswitch_terraform() {
 }
 
 function chk_pyt() {
-	grep -q "$1" "$HOME"/.pyenv/version
+	if [ -d "$HOME/.pyenv/version" ]; then
+		grep -q "$1" "$HOME/.pyenv/version"
+	else
+		false
+	fi
 }
 
 function install_pyenv_python() {
@@ -257,9 +266,9 @@ function install_pyenv_python() {
 	if chk_pyv; then
 		echo "### $msg.. $SKIP_INSTALLED"
 	else
-		export PATH="$HOME"/.pyenv/bin:"$PATH" # temporary to enable pyenv use within deploy
+		export PATH="$HOME/.pyenv/bin:$PATH" # temporary to enable pyenv use within deploy
 		log_and_exec "Installing pyenv" "$(curl -fsSL https://pyenv.run)"
-		if ! grp_zrc '# pyenv'; then
+		if ! grp_zrc "# pyenv"; then
 			printf '\n%s' \
 			'# pyenv' \
 			'export PATH=$HOME/.pyenv/bin:$PATH' \
@@ -267,8 +276,6 @@ function install_pyenv_python() {
 			'eval "$(pyenv virtualenv-init -)"' \
 			'' >> "$HOME"/.zshrc
 		fi
-		# eval $(pyenv init -)
-		# eval $(pyenv virtualenv-init -)
 	fi
 
 	msg="Installing Python"
@@ -325,12 +332,12 @@ github_repos=(
 )
 
 wsl2_config								# done
-git_config								# check values on reinstall
+git_config								# done
 update_distro							# done
 install_zsh_omz_powerlevel10k			# done
 install_go								# done
-install_tfswitch_terraform "0.13.5"		# sudo check and version check
-install_pyenv_python "3.9.0"			# check if pyenv evals are required in deploy
+install_tfswitch_terraform "0.13.5"		# tf version check
+install_pyenv_python "3.9.0"			# done
 install_poetry "3.9.0"					# done
 git_clone_all "${github_repos[@]}"
 
