@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 
-readonly global_volume=""
+readonly GLOBAL_VOLUME=""
 readonly SKIP_INSTALLED="Already installed, skipping."
-readonly code_dir="$HOME/code"
+readonly CODE_DIR="$HOME/code"
 
 function wsl2_config() {
 	sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
 	echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null # WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592
+}
+
+function grp_zrc() {
+	grep -q $1 "$HOME"/.zshrc
 }
 
 function log_and_exec() {
@@ -35,8 +39,8 @@ function log_and_exec() {
 		esac
 	done
 
-	if [[ $global_volume != "" ]]; then
-		volume=$global_volume
+	if [[ $GLOBAL_VOLUME != "" ]]; then
+		volume=$GLOBAL_VOLUME
 	fi
 
     local message="${1}"
@@ -133,6 +137,17 @@ function install_zsh_omz_powerlevel10k() {
 		fi
 		log_and_exec "$msg" "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh) \"\" --unattended"
 		log_and_exec "Copying .zshrc config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
+		if ! grp_zrc 'WSL2 DNS bug workaround'; then
+			printf '\n%s' \
+			'# WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592' \
+			'echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null' \
+			'' >> "$HOME"/.zshrc
+		fi
+		printf '\n%s' \
+		'# Aliases' \
+		'alias zshconfig="code ~/.zshrc"' \
+		'alias ohmyzsh="code ~/.oh-my-zsh"' \
+		'' >> "$HOME"/.zshrc
 	fi
 
 	msg="Installing Powerlevl10k"
@@ -149,8 +164,25 @@ function install_zsh_omz_powerlevel10k() {
 		fi
 		log_and_exec "$msg" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10"
 		log_and_exec "Copying .p10k.zsh config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
-		# TODO : update .zshrc theme here
-		# TODO : add [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh to .zshrc
+		if ! grp_zrc ''; then			
+			sed -i '1s|^|# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.\n|' "$HOME"/.zshrc
+			sed -i '2s|^|# Initialization code that may require console input (password prompts, [y/n]\n|' "$HOME"/.zshrc
+			sed -i '3s|^|# confirmations, etc.) must go above this block; everything else may go below.\n|' "$HOME"/.zshrc
+			sed -i '4s|^|if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then\n|' "$HOME"/.zshrc
+			sed -i '5s|^|\tsource "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"\n|' "$HOME"/.zshrc
+			sed -i '6s|^|fi\n\n|' "$HOME"/.zshrc
+		fi
+		if ! grp_zrc 'powerlevel10k/powerlevel10k'; then
+			sed -i 's/ZSH_THEME="robbyrussell"/# ZSH_THEME="robbyrussell"/' "$HOME"/.zshrc # deactivate but preserve robyrussell theme
+			sed -i 's/# ZSH_THEME="robbyrussell"/&\nZSH_THEME="powerlevel10k\/powerlevel10k"/' "$HOME"/.zshrc # add powerline theme
+		fi
+		if ! grp_zrc '.p10k.zsh'; then
+			printf '\n%s' \
+			'# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.' \
+			'[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' \
+			'' >> "$HOME"/.zshrc
+		fi
+		
 	fi
 }
 
@@ -159,47 +191,128 @@ function install_go() {
 	if dpkg -s golang-go &> /dev/null; then
 		echo "### $msg.. $SKIP_INSTALLED"
 	else
+		if ! grp_zrc '# go'; then
+			[[ ! -d "$HOME"/go ]] && mkdir "$HOME"/go
+			printf '\n%s' \
+			'# go' \
+			"export GOPATH=\"$HOME/go\"" \
+			"export PATH=\"$PATH:/usr/local/go/bin:$GOPATH/bin\"" \
+			'' >> "$HOME"/.zshrc
+		fi
 		log_and_exec -su "$msg" "apt-get -y install golang-go"
-		# TODO : add gopath and gobin exports to .zshrc
 	fi
 }
 
 function install_tfswitch_terraform() {
-	local msg="Installing Go"
-	# TODO : check for existing installation
-	log_and_exec -su "Installing tfswitch" "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)"
-	if [ -z ${1+x} ]; then
-		log_and_exec -su "Setting terraform version" "tfswitch $1"
+	local tf_ver=$1
+
+	chk_tfs() {
+		[ -f /usr/local/bin/tfswitch ]
+	}
+
+	chk_tfv() {
+		true
+	}
+
+	local msg="Installing tfswitch"
+	if chk_tfs; then
+		echo "### $msg.. $SKIP_INSTALLED"
+	else
+		# might need to re-add -su here
+		log_and_exec "$msg" "$(curl -fsSL https://raw.githubusercontent.com/warrensbox/terraform-switcher/release/install.sh)"
+	fi
+
+	msg="Installing Terraform"
+	if [ -n "$tf_ver" ]; then
+		if chk_tfs; then
+			# might need to re-add -su here
+			log_and_exec "$msg $tf_ver" "tfswitch $tf_ver"
+		else
+			echo "### $msg.. tfswitch not installed, skipping."
+		fi
 	fi
 }
 
-function install_dev_tools() {
-	# log_and_exec -su "Installing pyenv dependencies" "apt-get -y install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev"
-	export PATH="$HOME"/.pyenv/bin:"$PATH"
-	log_and_exec "Installing pyenv" "$(curl -fsSL https://pyenv.run)"
-	# eval $(pyenv init -)
-	# eval $(pyenv virtualenv-init -)
-	log_and_exec "Installing python 3.9.0" "pyenv install 3.9.0"
-	log_and_exec "Setting global python to 3.9.0" "pyenv global 3.9.0"
+function chk_pyt() {
+	grep -q "$1" "$HOME"/.pyenv/version
+}
 
-	# _poetry_download=(curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O)
-	# log_and_exec "Downloading Poetry" "curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O"
-	# _poetry_install=(python get-poetry.py -y)
-	# log_and_exec "Installing Poetry" "python get-poetry.py -y"
-	# _poetry_clean=(mv get-poetry.py "$HOME"/.poetry)
-	# log_and_exec "Moving Poetry install script to ~/.poetry" "mv get-poetry.py $HOME/.poetry"
+function install_pyenv_python() {
+	local pyt_ver=$1
+
+	chk_pyv() {
+		[ -f "$HOME"/.pyenv/bin/pyenv ]
+	}
+
+	local msg="Installing PyEnv dependencies"
+	if chk_pyv; then
+		echo "### $msg... $SKIP_INSTALLED"
+	else
+		log_and_exec -su "$msg" "apt-get -y install --no-install-recommends " \
+		"make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev " \
+		"libncurses5-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev"
+	fi
+
+	msg="Installing PyEnv"
+	if chk_pyv; then
+		echo "### $msg.. $SKIP_INSTALLED"
+	else
+		export PATH="$HOME"/.pyenv/bin:"$PATH" # temporary to enable pyenv use within deploy
+		log_and_exec "Installing pyenv" "$(curl -fsSL https://pyenv.run)"
+		if ! grp_zrc '# pyenv'; then
+			printf '\n%s' \
+			'# pyenv' \
+			'export PATH=$HOME/.pyenv/bin:$PATH' \
+			'eval "$(pyenv init -)"' \
+			'eval "$(pyenv virtualenv-init -)"' \
+			'' >> "$HOME"/.zshrc
+		fi
+		# eval $(pyenv init -)
+		# eval $(pyenv virtualenv-init -)
+	fi
+
+	msg="Installing Python"
+	if [ -n "$pyt_ver" ]; then
+		if chk_pyv; then
+			if chk_pyt "$pyt_ver"; then
+				echo "### $msg $1.. $SKIP_INSTALLED"
+			else
+				log_and_exec "$msg $pyt_ver" "pyenv install $pyt_ver"
+				log_and_exec "Setting global python to $pyt_ver" "pyenv global $pyt_ver"
+			fi
+		else
+			echo "### $msg.. PyEnv not installed, skipping."
+		fi
+	fi
+}
+
+function install_poetry() {
+	chk_poe() {
+		[[ -d "$HOME"/.poetry ]]
+	}
+
+	local msg="Installing Poetry"
+	if chk_poe; then
+		echo "### $msg.. $SKIP_INSTALLED"
+	else
+		if chk_pyt "$1"; then
+			log_and_exec "Downloading Poetry" "curl -fsSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -O"
+			log_and_exec "$msg" "python get-poetry.py -y"
+			log_and_exec "Moving Poetry install script to ~/.poetry" "mv get-poetry.py $HOME/.poetry"
+		fi
+	fi
 }
 
 function git_clone_all() {
-	[ ! -d "$code_dir" ] && mkdir "$code_dir"
+	[ ! -d "$CODE_DIR" ] && mkdir "$CODE_DIR"
 	local repos=("${@}")
 	for i in "${repos[@]}"
 	do
 		local cmd=true
 		local repo
 		repo=$(echo "$i" | cut -d "/" -f 2)
-		[ ! -d "$code_dir/$repo" ] && cmd="git clone https://github.com/$i.git $code_dir/$repo --quiet"
-		log_and_exec "Cloning repo to $code_dir/$repo" "$cmd"
+		[ ! -d "$CODE_DIR/$repo" ] && cmd="git clone https://github.com/$i.git $CODE_DIR/$repo --quiet"
+		log_and_exec "Cloning repo to $CODE_DIR/$repo" "$cmd"
 	done
 }
 
@@ -211,14 +324,14 @@ github_repos=(
 	"getndazn/sre-grafana"
 )
 
-wsl2_config
-git_config
-update_distro
-install_zsh_omz_powerlevel10k
-install_go
-# install_tfswitch_terraform 0_13_5
-# install_pyenv_python 3_9_0
-# install_poetry
+wsl2_config								# done
+git_config								# check values on reinstall
+update_distro							# done
+install_zsh_omz_powerlevel10k			# done
+install_go								# done
+install_tfswitch_terraform "0.13.5"		# sudo check and version check
+install_pyenv_python "3.9.0"			# check if pyenv evals are required in deploy
+install_poetry "3.9.0"					# done
 git_clone_all "${github_repos[@]}"
 
 # code .
