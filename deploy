@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-readonly GLOBAL_VOLUME=3
+readonly GLOBAL_VOLUME=""
 readonly SKIP_INSTALLED="Already installed, skipping."
 readonly CODE_DIR="$HOME/code"
 readonly BIN_DIR="$HOME/bin"
@@ -104,7 +104,7 @@ function git_config() {
 function update_distro() {
 	log_and_exec -su "Updating package index" "apt-get update -y"
 	log_and_exec -su "Upgrading packages" "apt-get dist-upgrade -y"
-	# log_and_exec -su "Installing basic packages" "apt-get install git wget curl -y"
+	log_and_exec -su "Installing basic packages" "apt-get install git wget curl -y"
 	log_and_exec -su "Removing unneccessary dependencies" "apt-get autoremove -y"
 }
 
@@ -114,11 +114,11 @@ function install_zsh_omz_powerlevel10k() {
 	}
 
 	function chk_omz() {
-		[ -f "$HOME"/.oh-my-zsh/oh-my-zsh.sh ]
+		[ -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]
 	}
 
 	function chk_plk() {
-		[ -d "$HOME/.oh-my-zsh/custom/themes/powerlevel10" ]
+		[ -d "$HOME/.oh-my-zsh/custom/themes/powerlevel10k" ]
 	}
 
 	local msg="Installing ZSH"
@@ -160,7 +160,7 @@ function install_zsh_omz_powerlevel10k() {
 			echo "### $msg.. Oh-My-Zsh not installed, skipping."
 			return
 		else
-			log_and_exec "$msg" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10"
+			log_and_exec "$msg" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
 			log_and_exec "Copying .p10k.zsh config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
 			if ! grp_zrc "Enable Powerlevel10k instant prompt"; then			
 				sed -i '1s|^|# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.\n|' "$HOME"/.zshrc
@@ -193,7 +193,7 @@ function install_go() {
 		if ! grp_zrc '# go'; then
 			printf '\n%s' \
 			'# go' \
-			'export GOPATH=\"$HOME/go"' \
+			'export GOPATH="$HOME/go"' \
 			'export PATH="$PATH:/usr/local/go/bin:$GOPATH/bin"' \
 			'' >> "$HOME"/.zshrc
 		fi
@@ -254,7 +254,7 @@ function install_pyenv_python() {
 	}
 
 	local msg="Installing PyEnv dependencies"
-	if chk_pyv; then
+	if ! chk_pyv; then
 		echo "### $msg... $SKIP_INSTALLED"
 	else
 		log_and_exec -su "$msg" "apt-get -y install --no-install-recommends " \
@@ -276,6 +276,8 @@ function install_pyenv_python() {
 			'eval "$(pyenv virtualenv-init -)"' \
 			'' >> "$HOME"/.zshrc
 		fi
+		eval "$(pyenv init -)"
+		eval "$(pyenv virtualenv-init -)"
 	fi
 
 	msg="Installing Python"
@@ -337,9 +339,9 @@ update_distro							# done
 install_zsh_omz_powerlevel10k			# done
 install_go								# done
 install_tfswitch_terraform "0.13.5"		# tf version check
-install_pyenv_python "3.9.0"			# done
-install_poetry "3.9.0"					# done
+install_pyenv_python "3.9.0"			# python wont install	
+# install_poetry "3.9.0"					# done
 git_clone_all "${github_repos[@]}"
 
-# code .
-# exec zsh
+code .
+exec zsh
