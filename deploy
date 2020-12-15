@@ -101,14 +101,14 @@ function git_config() {
 		echo "$output"
 	}
 
-	if local_gitconfig_property_is_set "user.name"; then
+	if local_gitconfig_property_is_empty "user.name"; then
 		local property=get_remote_gitconfig_property "/mnt/c/Users/James/.gitconfig" "name"
 		log_and_exec "Setting Github name" "git config --global user.name $property"
 	fi
-	if local_gitconfig_property_is_set "user.email"; then
+	if local_gitconfig_property_is_empty "user.email"; then
 		log_and_exec "Setting Github email" "git config --global user.email $(get_remote_gitconfig_property "/mnt/c/Users/James/.gitconfig" "email")"
 	fi
-	if local_gitconfig_property_is_set "credential.helper"; then
+	if local_gitconfig_property_is_empty "credential.helper"; then
 		log_and_exec "Setting Github credential manager" 'git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe"'
 	fi
 }
@@ -157,17 +157,17 @@ function install_zsh_omz_powerlevel10k() {
 		echo "$msg.. Requirements not met, skipping."
 	fi
 
-	msg="Installing Oh-My-Zsh"
-	if zsh_is_installed && ! oh_my_zsh_is_installed; then
-		log_and_exec "$msg" "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh) \"\" --unattended"
+	# Consider removing default OMZ lines and adding upon OMZ install
+	msg="Installing .zshrc config"
+	if zsh_is_installed && ! zshrc_is_present; then
+		log_and_exec "$msg" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
 	else
 		echo "$msg.. Requirements not met, skipping."
 	fi
 
-	# Consider removing default OMZ lines and adding upon OMZ install
-	msg="Installing .zshrc config"
-	if oh_my_zsh_is_installed && ! zshrc_is_present; then
-		log_and_exec "$msg" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
+	msg="Installing Oh-My-Zsh"
+	if zsh_is_installed && ! oh_my_zsh_is_installed; then
+		log_and_exec "$msg" "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh) \"\" --unattended"
 	else
 		echo "$msg.. Requirements not met, skipping."
 	fi
@@ -180,7 +180,7 @@ function install_zsh_omz_powerlevel10k() {
 		echo "$msg.. Requirements not met, skipping."
 	fi
 
-	msg="Adding WSL2 DNS workaround to .zshrc : "
+	msg="Adding WSL2 DNS workaround to .zshrc"
 	echo -n "$msg.. "
 	if zshrc_is_present && ! grep_in_zshrc "WSL2 DNS bug workaround"; then
 		printf '\n%s' \
@@ -192,7 +192,7 @@ function install_zsh_omz_powerlevel10k() {
 		echo "$msg.. Requirements not met, skipping."
 	fi
 
-	msg="Adding ZSH config aliases to .zshrc : "
+	msg="Adding ZSH config aliases to .zshrc"
 	echo -n "$msg.. "
 	if zshrc_is_present && ! grep_in_zshrc "# ZSH Aliases"; then
 		printf '\n%s' \
