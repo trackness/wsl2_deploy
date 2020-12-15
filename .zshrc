@@ -13,7 +13,3 @@ ZSH_THEME="robbyrussell"
 plugins=(git)
 
 source $ZSH/oh-my-zsh.sh
-
-# tfswitch / terraform
-# alias tfswitch="sudo tfswitch"
-# alias terarform="sudo terraform"

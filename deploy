@@ -9,10 +9,11 @@ function wsl2_config() {
 	sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
 	echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null # WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592
 	[ ! -d "$BIN_DIR" ] && mkdir "$BIN_DIR"
+	[ ! -d "$CODE_DIR" ] && mkdir "$CODE_DIR"
 }
 
-function grp_zrc() {
-	grep -q "$1" "$HOME/.zshrc"
+function grep_in_zshrc() {
+	[ -f "$HOME/.zshrc" ] && grep -q "$1" "$HOME/.zshrc"
 }
 
 function log_and_exec() {
@@ -85,20 +86,31 @@ function log_and_exec() {
 	esac
 }
 
-function get_property {
-	PROP_FILE=$1
-	PROP_KEY=$2
-	PROP_VALUE=$(grep "$PROP_KEY" "$PROP_FILE" | cut -d '=' -f2)
-	shopt -s extglob
-	output="${PROP_VALUE##*( )}"
-	shopt -u extglob
-	echo "$output"
-}
-
 function git_config() {
-	log_and_exec "Setting Github name" "git config --global user.name $(get_property "/mnt/c/Users/James/.gitconfig" "name")"
-	log_and_exec "Setting Github email" "git config --global user.email $(get_property "/mnt/c/Users/James/.gitconfig" "email")"
-	log_and_exec "Setting Github credential manager" 'git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe"'
+	function local_gitconfig_property_is_empty() {
+		[ "$(git config --global "$1")" == "" ]
+	}
+
+	function get_remote_gitconfig_property() {
+		PROP_FILE=$1
+		PROP_KEY=$2
+		PROP_VALUE=$(grep "$PROP_KEY" "$PROP_FILE" | cut -d '=' -f2)
+		shopt -s extglob
+		output="${PROP_VALUE##*( )}"
+		shopt -u extglob
+		echo "$output"
+	}
+
+	if local_gitconfig_property_is_set "user.name"; then
+		local property=get_remote_gitconfig_property "/mnt/c/Users/James/.gitconfig" "name"
+		log_and_exec "Setting Github name" "git config --global user.name $property"
+	fi
+	if local_gitconfig_property_is_set "user.email"; then
+		log_and_exec "Setting Github email" "git config --global user.email $(get_remote_gitconfig_property "/mnt/c/Users/James/.gitconfig" "email")"
+	fi
+	if local_gitconfig_property_is_set "credential.helper"; then
+		log_and_exec "Setting Github credential manager" 'git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe"'
+	fi
 }
 
 function update_distro() {
@@ -109,78 +121,131 @@ function update_distro() {
 }
 
 function install_zsh_omz_powerlevel10k() {
-	function chk_zsh() {
+	function zsh_is_installed() {
 		dpkg -s zsh &> /dev/null
 	}
 
-	function chk_omz() {
+	function oh_my_zsh_is_installed() {
 		[ -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]
 	}
 
-	function chk_plk() {
+	function powerlevel10k_is_installed() {
 		[ -d "$HOME/.oh-my-zsh/custom/themes/powerlevel10k" ]
 	}
 
-	local msg="Installing ZSH"
-	if chk_zsh; then
-		echo "### $msg.. $SKIP_INSTALLED"
+	function zshrc_is_present() {
+		[ -f "$HOME/.zshrc" ]
+	}
+
+	function p10k_is_present() {
+		[ -f "$HOME/.p10k.zsh" ]
+	}
+
+	local msg=""
+
+	msg="Installing .p10k.zsh config"
+	if ! p10k_is_present; then
+		log_and_exec "$msg" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
 	else
+		echo "$msg.. Requirements not met, skipping."
+	fi
+
+	msg="Installing ZSH"
+	if ! zsh_is_installed; then
 		log_and_exec -su "$msg" "apt-get -y install zsh"
-		log_and_exec -su "Changing default shell to ZSH" "chsh -s /usr/bin/zsh $USER"
+	else
+		echo "$msg.. Requirements not met, skipping."
 	fi
 
 	msg="Installing Oh-My-Zsh"
-	if chk_omz; then
-		echo "### $msg.. $SKIP_INSTALLED"
-	else
-		if ! chk_zsh; then
-			echo "### $msg.. ZSH not installed, skipping."
-			return
-		fi
+	if zsh_is_installed && ! oh_my_zsh_is_installed; then
 		log_and_exec "$msg" "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh) \"\" --unattended"
-		log_and_exec "Copying .zshrc config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
-		if ! grp_zrc "WSL2 DNS bug workaround"; then
-			printf '\n%s' \
-			'# WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592' \
-			'echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null' \
-			'' >> "$HOME"/.zshrc
-		fi
+	else
+		echo "$msg.. Requirements not met, skipping."
+	fi
+
+	# Consider removing default OMZ lines and adding upon OMZ install
+	msg="Installing .zshrc config"
+	if oh_my_zsh_is_installed && ! zshrc_is_present; then
+		log_and_exec "$msg" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.zshrc -o $HOME/.zshrc"
+	else
+		echo "$msg.. Requirements not met, skipping."
+	fi
+
+	# consider moving to end with full checks
+	msg="Changing default shell to ZSH"
+	if oh_my_zsh_is_installed && zshrc_is_present; then
+		log_and_exec -su "$msg" "chsh -s /usr/bin/zsh $USER"
+	else
+		echo "$msg.. Requirements not met, skipping."
+	fi
+
+	msg="Adding WSL2 DNS workaround to .zshrc : "
+	echo -n "$msg.. "
+	if zshrc_is_present && ! grep_in_zshrc "WSL2 DNS bug workaround"; then
 		printf '\n%s' \
-		'# Aliases' \
+		'# WSL2 DNS bug workaround: https://github.com/microsoft/WSL/issues/5256#issuecomment-711459592' \
+		'echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null' \
+		'' >> "$HOME"/.zshrc
+		echo "Done."
+	else
+		echo "$msg.. Requirements not met, skipping."
+	fi
+
+	msg="Adding ZSH config aliases to .zshrc : "
+	echo -n "$msg.. "
+	if zshrc_is_present && ! grep_in_zshrc "# ZSH Aliases"; then
+		printf '\n%s' \
+		'# ZSH Aliases' \
 		'alias zshconfig="code ~/.zshrc"' \
 		'alias ohmyzsh="code ~/.oh-my-zsh"' \
 		'' >> "$HOME"/.zshrc
+		echo "Done."
+	else
+		echo "Requirements not met, skipping."
 	fi
 
 	msg="Installing Powerlevl10k"
-	if chk_plk; then
-		echo "### $msg.. $SKIP_INSTALLED"
+	if oh_my_zsh_is_installed && ! powerlevel10k_is_installed; then
+		log_and_exec "$msg" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
 	else
-		if ! chk_omz; then
-			echo "### $msg.. Oh-My-Zsh not installed, skipping."
-			return
-		else
-			log_and_exec "$msg" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
-			log_and_exec "Copying .p10k.zsh config" "curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/.p10k.zsh -o $HOME/.p10k.zsh"
-			if ! grp_zrc "Enable Powerlevel10k instant prompt"; then			
-				sed -i '1s|^|# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.\n|' "$HOME"/.zshrc
-				sed -i '2s|^|# Initialization code that may require console input (password prompts, [y/n]\n|' "$HOME"/.zshrc
-				sed -i '3s|^|# confirmations, etc.) must go above this block; everything else may go below.\n|' "$HOME"/.zshrc
-				sed -i '4s|^|if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then\n|' "$HOME"/.zshrc
-				sed -i '5s|^|\tsource "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"\n|' "$HOME"/.zshrc
-				sed -i '6s|^|fi\n\n|' "$HOME"/.zshrc
-			fi
-			if ! grp_zrc "powerlevel10k/powerlevel10k"; then
-				sed -i 's/ZSH_THEME="robbyrussell"/# ZSH_THEME="robbyrussell"/' "$HOME"/.zshrc # deactivate but preserve robyrussell theme
-				sed -i 's/# ZSH_THEME="robbyrussell"/&\nZSH_THEME="powerlevel10k\/powerlevel10k"/' "$HOME"/.zshrc # add powerline theme
-			fi
-			if ! grp_zrc ".p10k.zsh"; then
-				printf '\n%s' \
-				'# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.' \
-				'[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' \
-				'' >> "$HOME"/.zshrc
-			fi
-		fi
+		echo "$msg.. Requirements not met, skipping."
+	fi
+
+	msg="Sourcing .p10k.zsh in .zshrc"
+	echo -n "$msg.. "
+	if powerlevel10k_is_installed && p10k_is_present && ! grep_in_zshrc ".p10k.zsh"; then
+		printf '\n%s' \
+		"# To customize prompt, run 'p10k configure' or edit ~/.p10k.zsh." \
+		'[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' \
+		'' >> "$HOME"/.zshrc
+		echo "Done."
+	else
+		echo "Requirements not met, skipping."
+	fi
+
+	msg="Enabling Powerlevel10k instant prompt"
+	echo -n "$msg.. "
+	if powerlevel10k_is_installed && p10k_is_present && grep_in_zshrc ".p10k.zsh" && ! grep_in_zshrc "Enable Powerlevel10k instant prompt"; then		
+		sed -i '1s|^|# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.\n|' "$HOME"/.zshrc
+		sed -i '2s|^|# Initialization code that may require console input (password prompts, [y/n]\n|' "$HOME"/.zshrc
+		sed -i '3s|^|# confirmations, etc.) must go above this block; everything else may go below.\n|' "$HOME"/.zshrc
+		sed -i '4s|^|if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then\n|' "$HOME"/.zshrc
+		sed -i '5s|^|\tsource "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"\n|' "$HOME"/.zshrc
+		sed -i '6s|^|fi\n\n|' "$HOME"/.zshrc
+		echo "Done."
+	else
+		echo "Requirements not met, skipping."
+	fi
+
+	msg="Setting theme to Powerlevel10k.. "
+	echo -n "$msg.. "
+	if powerlevel10k_is_installed && p10k_is_present && grep_in_zshrc ".p10k.zsh" && ! grep_in_zshrc "powerlevel10k/powerlevel10k"; then
+		sed -i 's/ZSH_THEME="robbyrussell"/# ZSH_THEME="robbyrussell"/' "$HOME"/.zshrc # deactivate but preserve robyrussell theme
+		sed -i 's/# ZSH_THEME="robbyrussell"/&\nZSH_THEME="powerlevel10k\/powerlevel10k"/' "$HOME"/.zshrc # add powerline theme
+		echo "Done."
+	else
+		echo "Requirements not met, skipping."
 	fi
 }
 
@@ -190,7 +255,7 @@ function install_go() {
 		echo "### $msg.. $SKIP_INSTALLED"
 	else
 		[[ ! -d "$HOME"/go ]] && mkdir "$HOME"/go
-		if ! grp_zrc '# go'; then
+		if ! grep_in_zshrc '# go'; then
 			printf '\n%s' \
 			'# go' \
 			'export GOPATH="$HOME/go"' \
@@ -268,7 +333,7 @@ function install_pyenv_python() {
 	else
 		export PATH="$HOME/.pyenv/bin:$PATH" # temporary to enable pyenv use within deploy
 		log_and_exec "Installing pyenv" "$(curl -fsSL https://pyenv.run)"
-		if ! grp_zrc "# pyenv"; then
+		if ! grep_in_zshrc "# pyenv"; then
 			printf '\n%s' \
 			'# pyenv' \
 			'export PATH=$HOME/.pyenv/bin:$PATH' \
@@ -333,13 +398,13 @@ github_repos=(
 	"getndazn/sre-grafana"
 )
 
-wsl2_config								# done
+wsl2_config								# check state of modified setup files, only do if not yet done
 git_config								# done
 update_distro							# done
 install_zsh_omz_powerlevel10k			# done
-install_go								# done
-install_tfswitch_terraform "0.13.5"		# tf version check
-install_pyenv_python "3.9.0"			# python wont install	
+# install_go								# done
+# install_tfswitch_terraform "0.13.5"		# tf version check
+# install_pyenv_python "3.9.0"			# python wont install	
 # install_poetry "3.9.0"					# done
 git_clone_all "${github_repos[@]}"
 
