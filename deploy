@@ -5,6 +5,7 @@ readonly SKIP_INSTALLED="Already done, skipping."
 readonly SKIP_REQUIREMENTS="Requirements not met, skipping."
 readonly CODE_DIR="$HOME/code"
 readonly BIN_DIR="$HOME/bin"
+readonly GO_DIR="$HOME/go"
 
 function wsl2_config() {
 	[ ! -f "/etc/sudoers.d/$USER" ] && sudo echo "${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/"${USER}" > /dev/null 2>&1
@@ -12,6 +13,8 @@ function wsl2_config() {
 	! grep -q "nameserver 8.8.8.8" /etc/resolv.conf && echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
 	[ ! -d "$BIN_DIR" ] && mkdir "$BIN_DIR"
 	[ ! -d "$CODE_DIR" ] && mkdir "$CODE_DIR"
+	[ ! -d "$GO_DIR" ] && mkdir "$GO_DIR"
+
 }
 
 function grep_in_zshrc() {
@@ -234,81 +237,126 @@ function install_zsh_omz_powerlevel10k() {
 		echo "$SKIP_INSTALLED"
 	fi
 
-	msg="Installing Powerlevl10k"
-	if ! powerlevel10k_is_installed; then
-		if oh_my_zsh_is_installed; then
-			log_and_exec "$msg" "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
-		else
-			echo "$msg.. $SKIP_REQUIREMENTS"
+	function install_powelevel10k() {
+		echo -n "Installing Powerlevl10k.. "
+		if powerlevel10k_is_installed; then
+			echo "$SKIP_INSTALLED"
+			return
 		fi
-	else
-		echo "$msg.. $SKIP_INSTALLED"
-	fi
+		if ! oh_my_zsh_is_installed; then
+			echo "Oh-My-Zsh not installed"
+			return
+		fi
+		git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+		echo "Done."
+	}
 
-	msg="Sourcing .p10k.zsh in .zshrc"
-	echo -n "$msg.. "
-	if ! grep_in_zshrc ".p10k.zsh"; then
-		if powerlevel10k_is_installed && p10k_is_present; then
-			printf '\n%s' \
-			"# To customize prompt, run 'p10k configure' or edit ~/.p10k.zsh." \
-			'[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' \
-			'' >> "$HOME"/.zshrc
-			echo "Done."
-		else
-			echo "$SKIP_REQUIREMENTS"
+	function source_p10k_zsh_in_zsrc() {
+		echo -n "Sourcing .p10k.zsh in .zshrc.. "
+		if grep_in_zshrc ".p10k.zsh"; then
+			echo "$SKIP_INSTALLED"
+			return
 		fi
-	else
-		echo "$SKIP_INSTALLED"
-	fi
+		if ! powerlevel10k_is_installed; then
+			echo "Powerlevel10k theme not installed"
+			return
+		fi
+		if ! p10k_is_present; then
+			echo ".p10k.zsh config file not present"
+			return
+		fi
+		printf '\n%s' \
+		"# To customize prompt, run 'p10k configure' or edit ~/.p10k.zsh." \
+		'[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' \
+		'' >> "$HOME"/.zshrc
+		echo "Done."
+	}
 
-	msg="Enabling Powerlevel10k instant prompt"
-	echo -n "$msg.. "
-	if ! grep_in_zshrc "Enable Powerlevel10k instant prompt"; then
-		if powerlevel10k_is_installed && p10k_is_present && grep_in_zshrc ".p10k.zsh"; then		
-			sed -i '2s|^|# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.\n|' "$HOME"/.zshrc
-			sed -i '3s|^|# Initialization code that may require console input (password prompts, [y/n]\n|' "$HOME"/.zshrc
-			sed -i '4s|^|# confirmations, etc.) must go above this block; everything else may go below.\n|' "$HOME"/.zshrc
-			sed -i '5s|^|if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then\n|' "$HOME"/.zshrc
-			sed -i '6s|^|\tsource "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"\n|' "$HOME"/.zshrc
-			sed -i '7s|^|fi\n\n|' "$HOME"/.zshrc
-			echo "Done."
-		else
-			echo "$SKIP_REQUIREMENTS"
+	function enable_p10k_instant_prompt() {
+		echo -n "Enabling Powerlevel10k instant prompt.. "
+		if grep_in_zshrc "# Enable Powerlevel10k instant prompt"; then 
+			echo "$SKIP_INSTALLED"
+			return 
 		fi
-	else
-		echo "$SKIP_INSTALLED"
-	fi
+		if ! powerlevel10k_is_installed; then
+			echo "Powerlevel10k theme not installed"
+			return 
+		fi
+		if ! p10k_is_present; then
+			echo ".p10k.zsh config file not present"
+			return
+		fi
+		if ! grep_in_zshrc ".p10k.zsh"; then
+			echo ".p10k.zsh not sourced in .zshrc"
+			return
+		fi
+		sed -i '2s|^|# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.\n|' "$HOME/.zshrc"
+		sed -i '3s|^|# Initialization code that may require console input (password prompts, [y/n]\n|' "$HOME/.zshrc"
+		sed -i '4s|^|# confirmations, etc.) must go above this block; everything else may go below.\n|' "$HOME/.zshrc"
+		sed -i '5s|^|if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then\n|' "$HOME/.zshrc"
+		sed -i '6s|^|\tsource "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"\n|' "$HOME/.zshrc"
+		sed -i '7s|^|fi\n\n|' "$HOME/.zshrc"
+		echo "Done."
+	}
 
-	msg="Setting theme to Powerlevel10k.. "
-	echo -n "$msg.. "
-	if ! grep_in_zshrc "powerlevel10k/powerlevel10k"; then
-		if powerlevel10k_is_installed && p10k_is_present && grep_in_zshrc ".p10k.zsh"; then
-			sed -i 's/ZSH_THEME="robbyrussell"/# ZSH_THEME="robbyrussell"/' "$HOME"/.zshrc # deactivate but preserve robyrussell theme
-			sed -i 's/# ZSH_THEME="robbyrussell"/&\nZSH_THEME="powerlevel10k\/powerlevel10k"/' "$HOME"/.zshrc # add powerline theme
-			echo "Done."
-		else
-			echo "$SKIP_REQUIREMENTS"
+	function set_p10k_theme() {
+		echo -n "Setting theme to Powerlevel10k.. "
+		if grep_in_zshrc "powerlevel10k/powerlevel10k"; then 
+			echo "$SKIP_INSTALLED"
+			return 
 		fi
-	else
-		echo "$SKIP_INSTALLED"
-	fi
+		if ! powerlevel10k_is_installed; then
+			echo "Powerlevel10k theme not installed"
+			return 
+		fi
+		if ! grep_in_zshrc ".p10k.zsh"; then
+			echo ".p10k.zsh not sourced in .zshrc"
+			return
+		fi
+		if ! p10k_is_present; then
+			echo ".p10k.zsh config file not present"
+			return
+		fi
+		sed -i 's/ZSH_THEME="robbyrussell"/# ZSH_THEME="robbyrussell"/' "$HOME"/.zshrc # deactivate but preserve robyrussell theme
+		sed -i 's/# ZSH_THEME="robbyrussell"/&\nZSH_THEME="powerlevel10k\/powerlevel10k"/' "$HOME"/.zshrc # add powerline theme
+		echo "Done."
+	}
+
+	install_powelevel10k
+	source_p10k_zsh_in_zsrc
+	enable_p10k_instant_prompt
+	set_p10k_theme
 }
 
 function install_go() {
+	function go_is_installed() {
+		dpkg -s golang-go &> /dev/null
+	}
+
 	local msg="Installing Go"
-	if dpkg -s golang-go &> /dev/null; then
-		echo "### $msg.. $SKIP_INSTALLED"
+	if ! go_is_installed; then
+		log_and_exec -su "$msg" "apt-get -y install golang-go"
 	else
-		[[ ! -d "$HOME"/go ]] && mkdir "$HOME"/go
-		if ! grep_in_zshrc '# go'; then
+		echo "### $msg.. $SKIP_INSTALLED"
+	fi
+
+	echo -n "Setting Go environment variables.. "
+	if ! grep_in_zshrc '# go'; then
+		if go_is_installed; then
 			printf '\n%s' \
 			'# go' \
 			'export GOPATH="$HOME/go"' \
 			'export PATH="$PATH:/usr/local/go/bin:$GOPATH/bin"' \
-			'' >> "$HOME"/.zshrc
+			'' >> "$HOME/.zshrc"
+			echo "Done."
+		else
+			echo "$SKIP_REQUIREMENTS"
 		fi
-		log_and_exec -su "$msg" "apt-get -y install golang-go"
+	else
+		echo "$SKIP_INSTALLED"
 	fi
+
+
 }
 
 function install_tfswitch_terraform() {
@@ -450,7 +498,7 @@ wsl2_config								# check state of modified setup files, only do if not yet don
 git_config								# done
 update_distro							# done
 install_zsh_omz_powerlevel10k			# done
-# install_go								# done
+install_go								# done
 # install_tfswitch_terraform "0.13.5"		# tf version check
 # install_pyenv_python "3.9.0"			# python wont install	
 # install_poetry "3.9.0"					# done
