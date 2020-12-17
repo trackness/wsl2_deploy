@@ -117,7 +117,7 @@ function git_config() {
 		log_and_exec "Setting Github email" "git config --global user.email $property"
 	fi
 	if local_gitconfig_property_is_empty "credential.helper"; then
-		property="/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe"
+		property='"/mnt/c/Program\ Files/Git/mingw64/libexec/git-core/git-credential-manager.exe"'
 		log_and_exec "Setting Github credential manager" "git config --global credential.helper $property"
 	fi
 }
@@ -247,7 +247,7 @@ function install_zsh_omz_powerlevel10k() {
 			echo "Oh-My-Zsh not installed"
 			return
 		fi
-		git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+		git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" --quiet
 		echo "Done."
 	}
 
@@ -488,20 +488,20 @@ function git_clone_all() {
 
 github_repos=(
 	"trackness/wsl2_deploy"
-	"trackness/sentinel"
-	"trackness/splitwiser"
-	"getndazn/dazn-cli"
-	"getndazn/sre-grafana"
+	# "trackness/sentinel"
+	# "trackness/splitwiser"
+	# "getndazn/dazn-cli"
+	# "getndazn/sre-grafana"
 )
 
 wsl2_config								# check state of modified setup files, only do if not yet done
-git_config								# done
+git_config								# functionality done, needs removal of log_and_exec
 update_distro							# done
 install_zsh_omz_powerlevel10k			# done
-install_go								# done
+# install_go								# done
 # install_tfswitch_terraform "0.13.5"		# tf version check
 # install_pyenv_python "3.9.0"			# python wont install	
-# install_poetry "3.9.0"					# done
+# install_poetry "3.9.0"					# check after python works
 git_clone_all "${github_repos[@]}"
 
 # code .
