@@ -270,7 +270,7 @@ function install_zsh_omz_powerlevel10k() {
 		'[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' \
 		'' >> "$HOME"/.zshrc
 		echo "Done."
-	}
+	}	
 
 	function enable_p10k_instant_prompt() {
 		echo -n "Enabling Powerlevel10k instant prompt.. "
@@ -473,22 +473,22 @@ function install_poetry() {
 function git_clone_all() {
 	local repos=("${@}")
 	local repo
-	local msg
 	for i in "${repos[@]}"
 	do
-		msg="Cloning repo to $CODE_DIR/$repo"
-		repo=$(echo "$i" | cut -d "/" -f 2)
-		if [ ! -d "$CODE_DIR/$repo" ]; then
-			log_and_exec "$msg" "git clone https://github.com/$i.git $CODE_DIR/$repo --quiet"
-		else
-			echo "$msg.. Repo already exists, skipping."
+		repo="$CODE_DIR/$(echo "$i" | cut -d "/" -f 2)"
+		echo -n "Cloning repo to $repo.. "
+		if [ -d "$repo" ]; then
+			echo "Repo already exists, skipping."
+			continue
 		fi
+		git clone "https://github.com/$i.git" "$repo" --quiet
+		echo "Done."
 	done
 }
 
 github_repos=(
 	"trackness/wsl2_deploy"
-	# "trackness/sentinel"
+	"trackness/sentinel"
 	# "trackness/splitwiser"
 	# "getndazn/dazn-cli"
 	# "getndazn/sre-grafana"
@@ -497,12 +497,12 @@ github_repos=(
 wsl2_config								# check state of modified setup files, only do if not yet done
 git_config								# functionality done, needs removal of log_and_exec
 update_distro							# done
-install_zsh_omz_powerlevel10k			# done
+install_zsh_omz_powerlevel10k			# mostly done, some steps still need conversion
 # install_go								# done
 # install_tfswitch_terraform "0.13.5"		# tf version check
 # install_pyenv_python "3.9.0"			# python wont install	
 # install_poetry "3.9.0"					# check after python works
-git_clone_all "${github_repos[@]}"
+git_clone_all "${github_repos[@]}"		# done
 
 # code .
 # exec zsh

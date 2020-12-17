@@ -23,5 +23,5 @@ Steps:
 To initiate, run:
 
 ```sh
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/deploy)"
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null; bash -c "$(curl -fsSL https://raw.githubusercontent.com/trackness/wsl2_deploy/master/deploy)"
 ```
